@@ -6,7 +6,7 @@ import { hashPassword, comparePassword } from '../helpers/auth.js'
 // Function to register user
 export async function registerUser(req, res) {
     try {
-        const { name, email, password, role } = req.body
+        const { name, email, password, role, studentId } = req.body
 
         if (!name || !email || !password || !role) {
             return res.json({
@@ -18,6 +18,14 @@ export async function registerUser(req, res) {
         const existingUser = await User.findOne({ email })
         if (existingUser) {
             return res.json({ error: "Email already exists!" })
+        }
+
+        // Check if studentId is unique (if provided)
+        if (studentId) {
+            const existingId = await User.findOne({ studentId })
+            if (existingId) {
+                return res.json({ error: "Student/Staff ID already exists!" })
+            }
         }
 
         // Check if role is valid
@@ -41,6 +49,7 @@ export async function registerUser(req, res) {
         const user = await User.create({
             name, 
             email,
+            studentId: studentId || undefined,
             role,
             password: hashedPassword
         })

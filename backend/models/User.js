@@ -7,6 +7,11 @@ const UserSchema = mongoose.Schema({
         unique: true,
         required: true
     },
+    studentId: {
+        type: String,
+        unique: true,
+        sparse: true
+    },
     role: {
         type: String,
         enum: ["student_staff", "kitchen_staff", "admin"],
