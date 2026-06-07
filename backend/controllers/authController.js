@@ -1,4 +1,5 @@
 import jwt from "jsonwebtoken"
+import crypto from "crypto"
 
 import User from "../models/User.js"
 import { hashPassword, comparePassword } from '../helpers/auth.js'
@@ -69,6 +70,35 @@ export async function registerUser(req, res) {
 
         const { password: _, ...userData } = user.toObject()
         return res.json(userData)
+    } catch (error) {
+        console.error(error)
+        res.status(500).json({ message: "Server error" })
+    }
+}
+
+
+// Verify email
+export const verifyEmail = async (req, res) => {
+    try {
+        const hashedToken = crypto.createHash('sha256').update(req.params.token).digest('hex')
+
+        const user = await User.findOne({
+            verificationToken: hashedToken
+        })
+
+        // Token invalid/already used
+        if (!user) {
+            return res.status(400).json({
+                error: "Verification link is invalid or expired."
+            })
+        }
+
+        user.isVerified = true;
+        user.verificationToken = undefined;
+
+        await user.save();
+
+        res.status(200).json({ success: true, message: "Email verified successfully" })
     } catch (error) {
         console.error(error)
         res.status(500).json({ message: "Server error" })
