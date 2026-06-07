@@ -9,7 +9,7 @@ export async function registerUser(req, res) {
         const { name, email, password, role } = req.body
 
         if (!name || !email || !password || !role) {
-            return res.status(400).json({
+            return res.json({
                 error: "All fields are required"
             })
         }
@@ -17,21 +17,21 @@ export async function registerUser(req, res) {
         // Check if email is unique
         const existingUser = await User.findOne({ email })
         if (existingUser) {
-            return res.status(409).json({ error: "Email already exists!" })
+            return res.json({ error: "Email already exists!" })
         }
 
         // Check if role is valid
         const validRoles = ["student_staff", "kitchen_staff", "admin"];
 
         if (!validRoles.includes(role)) {
-            return res.status(400).json({
-                message: "Invalid role"
+            return res.json({
+                error: "Invalid role"
             });
         }
 
         // Check password validity
         if (password.length < 6) {
-            return res.status(400).json({ error: "Password must be greater than 6 characters!" })
+            return res.json({ error: "Password must be greater than 6 characters!" })
         }
 
         // Hash password
@@ -62,13 +62,13 @@ export async function loginUser(req, res) {
         // Find user
         const user = await User.findOne({ email })
         if (!user) {
-            return res.status(404).json({ error:  "User does not exist"})
+            return res.json({ error:  "User does not exist"})
         }
 
         // Verify user password
         const match = await comparePassword(password, user.password)
         if (!match) {
-            return res.status(401).json({ error: "Password incorrect!" })
+            return res.json({ error: "Password incorrect!" })
         }
 
         jwt.sign(

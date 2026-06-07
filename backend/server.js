@@ -1,6 +1,7 @@
 import express from "express"
 import dotenv from "dotenv"
 import cookieParser from "cookie-parser"
+import cors from "cors"
 
 import {connectDB} from './config/db.js'
 import authRoutes from './routes/authRoutes.js'
@@ -8,6 +9,12 @@ import authRoutes from './routes/authRoutes.js'
 dotenv.config()
 
 const app = express()
+
+// CORS
+app.use(cors({
+    origin: process.env.FRONTEND_URL,
+    credentials: true
+}))
 
 // Middleware
 app.use(express.json()) // parse JSON bodies (req.body)
