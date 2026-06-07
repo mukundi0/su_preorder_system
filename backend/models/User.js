@@ -1,4 +1,5 @@
 import mongoose from "mongoose"
+import crypto from "node:crypto";
 
 const UserSchema = mongoose.Schema({
     name: String,
@@ -16,8 +17,25 @@ const UserSchema = mongoose.Schema({
         type: Number,
         default: 0
     },
-    password: String
-})
+    password: String,
+    isVerified: {
+        type: Boolean,
+        default: false,
+    },
+    verificationToken: String,
+}, { timestamps: true })
+
+
+UserSchema.methods.getVerificationToken = function() {
+    const token = crypto.randomBytes(20).toString("hex");
+
+    this.verificationToken = crypto 
+        .createHash('sha256')
+        .update(token)
+        .digest("hex")
+
+    return token;
+}
 
 const User = mongoose.model("User", UserSchema)
 

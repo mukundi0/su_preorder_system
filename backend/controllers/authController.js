@@ -2,6 +2,7 @@ import jwt from "jsonwebtoken"
 
 import User from "../models/User.js"
 import { hashPassword, comparePassword } from '../helpers/auth.js'
+import { sendVerificationEmail } from "../utils/sendEmail.js"
 
 // Function to register user
 export async function registerUser(req, res) {
@@ -42,8 +43,29 @@ export async function registerUser(req, res) {
             name, 
             email,
             role,
-            password: hashedPassword
+            password: hashedPassword,
+            isVerified: false
         })
+
+        // Generate verification token
+        const verificationToken = user.getVerificationToken();
+
+        // Send verification email
+        // http://localhost:5173/verify-email/>token=1bc123
+        const verificationUrl = `${process.env.FRONTEND_URL}/verify-email/?token=${verificationToken}`
+
+        // Email message
+        const message = `Please verify your email by clicking the following link: ${verificationUrl}`;
+
+        await sendVerificationEmail({
+            email: user.email,
+            subject: 'Email Verification',
+            message,
+        })
+
+        console.log("Email verification sent successfully!")
+
+        await user.save({ validateBeforeSave: false })
 
         const { password: _, ...userData } = user.toObject()
         return res.json(userData)
