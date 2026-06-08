@@ -5,6 +5,7 @@ import cookieParser from "cookie-parser"
 import {connectDB} from './config/db.js'
 import authRoutes from './routes/authRoutes.js'
 import menuitemRoutes from './routes/menuitemRoutes.js'
+import categoryRoutes from './routes/categoryRoutes.js'
 
 dotenv.config()
 
@@ -24,6 +25,9 @@ app.use('/api/auth', authRoutes);
 
 // MenuItem
 app.use('/api/menuitems', menuitemRoutes)
+
+// Category
+app.use('/api/categories', categoryRoutes)
 
 
 const PORT = process.env.PORT || 8000
