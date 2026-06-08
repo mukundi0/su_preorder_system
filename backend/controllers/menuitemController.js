@@ -2,7 +2,26 @@ import MenuItem from '../models/MenuItem.js'
 
 export async function getMenuItems(req, res) {
     try {
-        const menuItems = await MenuItem.find().populate("category")
+        const { search, available, category } = req.query;
+
+        let filter = {};
+
+        // Search
+        if (search) {
+            filter.name = { $regex: search, $options: "i" }
+        }
+
+        // Availability
+        if (available != undefined) {
+            filter.isAvailable = available === "true"
+        }
+
+        // Category filter
+        if (category) {
+            filter.category = category
+        }
+
+        const menuItems = await MenuItem.find(filter).populate("category")
 
         res.json(menuItems)
     } catch (error) {
