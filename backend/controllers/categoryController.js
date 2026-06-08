@@ -31,7 +31,7 @@ export async function getAllCategories(req, res) {
 
 export async function createCategory(req, res) {
     try {
-        const { name } = req.body
+        const { name, description } = req.body
 
         const normalizedName = name.trim().toLowerCase()
 
@@ -44,7 +44,8 @@ export async function createCategory(req, res) {
             return res.status(409).json({ error: "Category already exists!" })
 
         const category = await Category.create({ 
-            name: normalizedName
+            name: normalizedName,
+            description
         })
 
         res.status(201).json(category)
@@ -57,11 +58,11 @@ export async function createCategory(req, res) {
 
 export async function updateCategory(req, res) {
     try {
-        const { name } = req.body
+        const { name, description } = req.body
 
         const updatedCategory = await Category.findByIdAndUpdate(
             req.params.id,
-            { name },
+            { name, description },
             { returnDocument: "after" }
         )
 
