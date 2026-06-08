@@ -1,8 +1,25 @@
 import Category from '../models/Category.js'
+import MenuItem from '../models/MenuItem.js'
 
 export async function getAllCategories(req, res) {
     try {
-        const categories = await Category.find()
+        const categories = await Category.aggregate([
+            { // lookup acts as a join
+                $lookup: {
+                    from: "menuitems", // collection to join with
+                    localField: "_id",
+                    foreignField: "category",
+                    as: "items"
+                }
+            },
+            { // project decides which fields should appear in final output
+                $project: {
+                    name: 1, // keep name, description
+                    description: 1,
+                    itemCount: { $size: "$items" } // count how many elements are inside 'items'
+                }
+            }
+        ])
 
         res.json(categories)
     } catch (error) {
