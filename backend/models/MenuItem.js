@@ -19,6 +19,12 @@ const MenuItemSchema = mongoose.Schema({
     isAvailable: {
         type: Boolean,
         default: true
+    },
+
+    category: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Category",
+        required: true
     }
 })
 

@@ -2,7 +2,7 @@ import MenuItem from '../models/MenuItem.js'
 
 export async function getMenuItems(req, res) {
     try {
-        const menuItems = await MenuItem.find()
+        const menuItems = await MenuItem.find().populate("category")
 
         res.json(menuItems)
     } catch (error) {
@@ -13,10 +13,10 @@ export async function getMenuItems(req, res) {
 
 export async function createMenuItem(req, res) {
     try {
-        const { name, fullPrice, halfPrice } = req.body
+        const { name, fullPrice, halfPrice, category } = req.body
 
         const newMenuItem = await MenuItem.create({
-            name, fullPrice, halfPrice 
+            name, fullPrice, halfPrice, category 
         })
 
         res.status(201).json(newMenuItem)
