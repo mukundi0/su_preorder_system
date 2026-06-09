@@ -14,7 +14,7 @@ const app = express()
 // Middleware
 app.use(express.json()) // parse JSON bodies (req.body)
 app.use(cookieParser()) // for cookies
-app.use(express.urlencoded({ extended: false })) // Handing HTML forms
+app.use(express.urlencoded({ extended: true })) // Handing HTML forms
 
 app.get('/', (req, res) => {
     res.send("Welcome to the SU preorder System")

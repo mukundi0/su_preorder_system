@@ -6,7 +6,7 @@ const CategorySchema = mongoose.Schema({
         required: true
     },
     description: String
-})
+}, { timestamps: true })
 
 const Category = mongoose.model("Category", CategorySchema)
 

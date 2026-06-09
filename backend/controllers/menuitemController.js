@@ -1,3 +1,4 @@
+import cloudinary from '../config/cloudinary.js';
 import MenuItem from '../models/MenuItem.js'
 
 export async function getMenuItems(req, res) {
@@ -34,8 +35,33 @@ export async function createMenuItem(req, res) {
     try {
         const { name, fullPrice, halfPrice, category } = req.body
 
+        let fileData = null;
+
+        // If a file is uploaded, send to Cloudinary
+        if (req.file) {
+
+            const result = await new Promise((resolve, reject) => {
+                const stream = cloudinary.uploader.upload_stream(
+                    { folder: "menuitem_uploads" },
+                    (error, result) => {
+                        if (error) reject(error);
+                        else resolve(result)
+                    }
+                )
+
+                stream.end(req.file.buffer)
+            })
+
+            fileData = {
+                url: result.secure_url,
+                public_id: result.public_id,
+                fileName: req.file.originalname
+            }
+        }
+
         const newMenuItem = await MenuItem.create({
-            name, fullPrice, halfPrice, category 
+            name, fullPrice, halfPrice, category,
+            image: fileData
         })
 
         res.status(201).json(newMenuItem)
