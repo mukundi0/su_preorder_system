@@ -11,7 +11,6 @@ function Login() {
   const [error, setError] = useState("")
   const [loggingIn, setLoggingIn] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
-  const [rememberDevice, setRememberDevice] = useState(false)
   const navigate = useNavigate()
 
   const handleSubmit = async (e) => {
@@ -120,19 +119,6 @@ function Login() {
                 )}
               </button>
             </div>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              id="remember"
-              checked={rememberDevice}
-              onChange={(e) => setRememberDevice(e.target.checked)}
-              className="w-4 h-4 rounded border-gray-300 text-red-500 focus:ring-red-400"
-            />
-            <label htmlFor="remember" className="text-xs text-gray-500">
-              Remember this device
-            </label>
           </div>
 
           <button
