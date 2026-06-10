@@ -22,12 +22,13 @@ const UserSchema = mongoose.Schema({
         type: Number,
         default: 0
     },
-    password: String,
+    password: String, // optional for Google Users
     isVerified: {
         type: Boolean,
         default: false,
     },
     verificationToken: String,
+    googleId: String
 }, { timestamps: true })
 
 

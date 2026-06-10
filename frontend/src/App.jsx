@@ -6,6 +6,8 @@ import Login from "./pages/Login"
 import Register from "./pages/Register"
 import AuthContextProvider from "./context/AuthContext"
 
+import { GoogleOAuthProvider } from "@react-oauth/google"
+
 // Set axios defaults
 const BASE_URL = "http://localhost:8000/api/"
 
@@ -14,15 +16,17 @@ axios.defaults.withCredentials = true
 
 function App() {
   return (
-    <AuthContextProvider>
-      <Router>
-        <Routes>
-          <Route path='/' element={<Home />} />
-          <Route path='/login' element={<Login />} />
-          <Route path='/register' element={<Register />} />
-        </Routes>
-      </Router>
-    </AuthContextProvider>
+    <GoogleOAuthProvider clientId={import.meta.env.VITE_GOOGLE_CLIENT_ID}>
+      <AuthContextProvider>
+        <Router>
+          <Routes>
+            <Route path='/' element={<Home />} />
+            <Route path='/login' element={<Login />} />
+            <Route path='/register' element={<Register />} />
+          </Routes>
+        </Router>
+      </AuthContextProvider>
+    </GoogleOAuthProvider>
   )
 }
 

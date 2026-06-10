@@ -4,6 +4,7 @@ import crypto from "crypto"
 import User from "../models/User.js"
 import { hashPassword, comparePassword } from '../helpers/auth.js'
 import { sendVerificationEmail } from "../utils/sendEmail.js"
+import { googleClient } from "../config/google.js"
 
 // Function to register user
 export async function registerUser(req, res) {
@@ -199,5 +200,79 @@ export async function getUser(req, res) {
     } catch (error) {
         console.error(error)
         res.status(500).json({ message: "Server error" })
+    }
+}
+
+
+// Google Auth
+export async function googleAuth(req, res) {
+    try {
+        const { credential } = req.body
+
+        const ticket = await googleClient.verifyIdToken({
+            idToken: credential,
+            audience: process.env.GOOGLE_CLIENT_ID,
+        })
+
+        const payload = ticket.getPayload()
+
+        const {
+            sub: googleId,
+            email,
+            name, 
+            email_verified
+        } = payload;
+
+        if (!email_verified) {
+            return res.json({
+                error: "Email not verified by Google"
+            })
+        }
+
+        // Find user
+        let user = await User.findOne({ email })
+
+        // If no user is found, create new user
+        if (!user) {
+            user = await User.create({
+                name,
+                email,
+                role: "student_staff", // Admins & Kitchen staff will never get here
+                isVerified: true
+            })
+        }
+
+        // If user is found, but googleId is not, link Google account 
+        // instead of creating duplicate user
+        if (!user.googleId) {
+            user.googleId = googleId;
+            await user.save()
+        }
+
+        // JWT
+        jwt.sign(
+            { 
+                id: user._id, 
+                email: user.email, 
+                name: user.name, 
+                role: user.role,
+            }, process.env.SECRET_KEY, {}, (err, token) => {
+                if (err) throw err
+
+                const { password: _, ...userData } = user.toObject()
+
+                res.cookie('token', token, {
+                    httpOnly: true,
+                    secure: process.env.NODE_ENV === "production"
+                }).json(userData)
+            }
+        ) 
+
+        res.json(user)
+    } catch (error) {
+        console.error(error)
+        res.status(500).json({
+            message: "Google Authentication failed"
+        })
     }
 }
