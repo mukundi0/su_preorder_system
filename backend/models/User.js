@@ -28,6 +28,7 @@ const UserSchema = mongoose.Schema({
         default: false,
     },
     verificationToken: String,
+    verificationTokenExpires: Date,
     googleId: String
 }, { timestamps: true })
 
@@ -39,6 +40,8 @@ UserSchema.methods.getVerificationToken = function() {
         .createHash('sha256')
         .update(token)
         .digest("hex")
+
+    this.verificationTokenExpires = new Date(Date.now() + 15 * 60 * 1000)
 
     return token;
 }
