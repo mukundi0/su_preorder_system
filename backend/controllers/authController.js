@@ -126,6 +126,11 @@ export async function loginUser(req, res) {
             return res.json({ error:  "User does not exist"})
         }
 
+        // Verify user is verified
+        if (!user.isVerified) {
+            return res.json({ error: "You need to verify your email first!" })
+        }
+
         // Verify user password
         const match = await comparePassword(password, user.password)
         if (!match) {
