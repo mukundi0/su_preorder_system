@@ -98,6 +98,7 @@ function Register() {
           onSuccess={handleSuccess}
           onError={() => setError("Login Failed")}
           text="continue_with"
+          hosted_domain="strathmore.edu"
         />
 
         <div className="flex items-center gap-3 mb-5">
