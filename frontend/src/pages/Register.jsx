@@ -21,10 +21,17 @@ function Register() {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
+
     if (!agreeTerms) {
       setError("Please agree to the Terms of Service and Privacy Policy.")
       return
     }
+
+    if (!email.endsWith("@strathmore.edu")) {
+      setError("Please use your institution email.");
+      return;
+    }
+
     try {
       setRegistering(true)
       setError("")
@@ -125,6 +132,7 @@ function Register() {
                 placeholder="username@strathmore.edu"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
+                pattern=".+@strathmore\.edu$"
                 required
                 className="w-full bg-gray-50 border border-gray-200 rounded-lg pl-10 pr-4 py-3 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#00193c] focus:border-transparent"
               />
