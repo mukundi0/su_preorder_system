@@ -20,9 +20,12 @@ function VerifyEmail() {
       return
     }
 
+    let cancelled = false
+
     const verify = async () => {
       try {
         const { data } = await axios.get(`auth/verify/${encodeURIComponent(token)}`)
+        if (cancelled) return
         if (data.success) {
           setState("success")
         } else {
@@ -30,12 +33,15 @@ function VerifyEmail() {
           setMessage(data.error || "Verification failed.")
         }
       } catch (err) {
+        if (cancelled) return
         setState("error")
         setMessage(err.response?.data?.error || "Verification failed or link expired.")
       }
     }
 
     verify()
+
+    return () => { cancelled = true }
   }, [token])
 
   const handleResend = async () => {
