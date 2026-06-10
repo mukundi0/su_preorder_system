@@ -220,12 +220,25 @@ export async function googleAuth(req, res) {
             sub: googleId,
             email,
             name, 
-            email_verified
+            email_verified,
+            hd
         } = payload;
 
         if (!email_verified) {
             return res.json({
                 error: "Email not verified by Google"
+            })
+        }
+
+        // Ensure email is a .strathmore.edu email
+        const domain = email.split("@")[1]?.toLowerCase()
+
+        if (
+            domain != 'strathmore.edu' ||
+            payload.hd !== "strathmore.edu"
+        ) {
+            return res.json({
+                error: "Please sign in with your institution email"
             })
         }
 
@@ -267,8 +280,6 @@ export async function googleAuth(req, res) {
                 }).json(userData)
             }
         ) 
-
-        res.json(user)
     } catch (error) {
         console.error(error)
         res.status(500).json({

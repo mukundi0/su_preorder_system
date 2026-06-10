@@ -49,7 +49,7 @@ function Login() {
       navigate("/")
     } catch (error) {
       console.error(error)
-      setError(error.message)
+      setError(error.response?.data?.error || "Google authentication failed")
     }
   }
 
@@ -179,6 +179,7 @@ function Login() {
           onSuccess={handleSuccess}
           onError={() => setError("Login Failed")}
           text="continue_with"
+          hosted_domain="strathmore.edu"
         />
 
         <div className="mt-8">
