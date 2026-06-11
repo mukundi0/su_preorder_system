@@ -1,7 +1,18 @@
-export default function StatsDashboard({ totalCategories, totalItems, thisMonthCategories }) {
+function toTitleCase(value) {
+  return value
+    .split(' ')
+    .filter(Boolean)
+    .map((word) => word[0].toUpperCase() + word.slice(1))
+    .join(' ')
+}
+
+export default function StatsDashboard({ totalCategories, totalItems, thisMonthCategories, categoryHealth = [] }) {
   const monthDeltaLabel = thisMonthCategories > 0
     ? `+${thisMonthCategories} This Month`
     : `${thisMonthCategories} This Month`
+  const topCategory = categoryHealth[0]
+  const displayedHealth = categoryHealth.slice(0, 3)
+  const barStyles = ['bg-primary', 'bg-secondary', 'bg-tertiary-fixed-dim']
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
@@ -30,15 +41,35 @@ export default function StatsDashboard({ totalCategories, totalItems, thisMonthC
       <div className="bg-surface-container-lowest p-6 rounded-xl border border-outline-variant hover:border-primary transition-colors cursor-default md:col-span-2 overflow-hidden relative shadow-sm">
         <div className="relative z-10">
           <h3 className="text-on-surface-variant text-xs uppercase font-bold tracking-wider mb-2">Category Health</h3>
-          <p className="text-sm text-on-surface-variant max-w-[240px]">
-            Most categories are performing well with high turnover in{' '}
-            <span className="font-bold text-primary">Main Meals</span>.
-          </p>
-          <div className="mt-4 flex gap-2">
-            <div className="h-2 flex-grow bg-primary rounded-full"></div>
-            <div className="h-2 w-1/4 bg-secondary rounded-full"></div>
-            <div className="h-2 w-1/6 bg-tertiary-fixed-dim rounded-full"></div>
-          </div>
+          {topCategory ? (
+            <>
+              <p className="text-sm text-on-surface-variant max-w-[320px]">
+                Top category is{' '}
+                <span className="font-bold text-primary">{toTitleCase(topCategory.name)}</span>
+                {' '}with {topCategory.count} of {totalItems} items ({topCategory.percentage}%).
+              </p>
+              <div className="mt-4 space-y-3">
+                {displayedHealth.map((entry, index) => (
+                  <div key={entry.name}>
+                    <div className="flex justify-between text-[11px] uppercase tracking-wider text-on-surface-variant mb-1">
+                      <span>{toTitleCase(entry.name)}</span>
+                      <span>{entry.count} items</span>
+                    </div>
+                    <div className="h-2 bg-surface-container rounded-full overflow-hidden">
+                      <div
+                        className={`h-full rounded-full ${barStyles[index] || 'bg-primary'}`}
+                        style={{ width: `${Math.max(entry.percentage, 4)}%` }}
+                      ></div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </>
+          ) : (
+            <p className="text-sm text-on-surface-variant max-w-[320px]">
+              No menu item data yet. Add items to see category distribution health.
+            </p>
+          )}
         </div>
         <div className="absolute right-0 top-0 bottom-0 w-32 bg-primary-container/5 -skew-x-12 translate-x-8"></div>
       </div>

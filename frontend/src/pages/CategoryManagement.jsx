@@ -23,7 +23,7 @@ async function fetchJSON(url, options = {}) {
 export default function CategoryManagement() {
   const [categories, setCategories] = useState([])
   const [pagination, setPagination] = useState({ page: 1, totalPages: 1, total: 0, limit: 0 })
-  const [stats, setStats] = useState({ totalCategories: 0, totalItems: 0, thisMonthCategories: 0 })
+  const [stats, setStats] = useState({ totalCategories: 0, totalItems: 0, thisMonthCategories: 0, categoryHealth: [] })
   const [search, setSearch] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
   const [loading, setLoading] = useState(true)
@@ -140,6 +140,7 @@ export default function CategoryManagement() {
           totalCategories={stats.totalCategories}
           totalItems={stats.totalItems}
           thisMonthCategories={stats.thisMonthCategories}
+          categoryHealth={stats.categoryHealth}
         />
 
         <div className="bg-surface-container-lowest rounded-xl border border-outline-variant shadow-sm overflow-hidden">

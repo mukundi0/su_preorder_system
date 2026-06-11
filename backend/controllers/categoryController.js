@@ -166,20 +166,51 @@ export async function getStats(req, res) {
         startOfMonth.setDate(1)
         startOfMonth.setHours(0, 0, 0, 0)
 
-        const [totalCategories, totalItemsResult, thisMonthCategories] = await Promise.all([
+        const [totalCategories, totalItemsResult, thisMonthCategories, categoryHealthRaw] = await Promise.all([
             Category.countDocuments(),
             MenuItem.aggregate([
                 { $group: { _id: null, count: { $sum: 1 } } }
             ]),
-            Category.countDocuments({ createdAt: { $gte: startOfMonth } })
+            Category.countDocuments({ createdAt: { $gte: startOfMonth } }),
+            MenuItem.aggregate([
+                {
+                    $project: {
+                        normalizedCategory: {
+                            $cond: [
+                                { $eq: [{ $type: "$category" }, "string"] },
+                                { $trim: { input: { $toLower: "$category" } } },
+                                null
+                            ]
+                        }
+                    }
+                },
+                {
+                    $match: {
+                        normalizedCategory: { $nin: [null, ""] }
+                    }
+                },
+                {
+                    $group: {
+                        _id: "$normalizedCategory",
+                        count: { $sum: 1 }
+                    }
+                },
+                { $sort: { count: -1 } }
+            ])
         ])
 
         const totalItems = totalItemsResult.length > 0 ? totalItemsResult[0].count : 0
+        const categoryHealth = categoryHealthRaw.map((entry) => ({
+            name: entry._id,
+            count: entry.count,
+            percentage: totalItems > 0 ? Math.round((entry.count / totalItems) * 100) : 0
+        }))
 
         res.json({
             totalCategories,
             totalItems,
-            thisMonthCategories
+            thisMonthCategories,
+            categoryHealth
         })
     } catch (error) {
         console.error(error)
