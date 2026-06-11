@@ -2,12 +2,74 @@
 
 @theme {
   --font-sans: 'Inter', sans-serif;
+  --font-headline: 'Inter', sans-serif;
+  --font-display: 'Inter', sans-serif;
+  --font-body: 'Inter', sans-serif;
+  --font-label: 'Inter', sans-serif;
+
+  --color-primary-fixed: #d7e2ff;
+  --color-error: #ba1a1a;
+  --color-on-secondary-fixed: #410003;
+  --color-tertiary-fixed-dim: #f1c045;
+  --color-surface-dim: #dad9df;
+  --color-outline-variant: #c4c6d1;
+  --color-surface-container-low: #f4f3f8;
+  --color-primary-fixed-dim: #abc7ff;
+  --color-surface-container-high: #e9e7ed;
+  --color-secondary-fixed: #ffdad6;
+  --color-on-primary-fixed-variant: #24467c;
+  --color-inverse-surface: #2f3034;
+  --color-on-surface-variant: #43474f;
+  --color-primary: #00193c;
+  --color-on-secondary-fixed-variant: #93000f;
+  --color-on-tertiary-fixed: #251a00;
+  --color-on-surface: #1a1b1f;
+  --color-on-tertiary-container: #bb8f11;
+  --color-on-primary: #ffffff;
+  --color-on-error: #ffffff;
+  --color-surface-container-lowest: #ffffff;
+  --color-outline: #747781;
+  --color-inverse-on-surface: #f1f0f5;
+  --color-tertiary: #231800;
+  --color-tertiary-fixed: #ffdf9b;
+  --color-on-tertiary-fixed-variant: #5a4300;
+  --color-on-primary-container: #7796d1;
+  --color-surface-tint: #3e5e95;
+  --color-inverse-primary: #abc7ff;
+  --color-background: #faf8fe;
+  --color-secondary: #b7141c;
+  --color-secondary-container: #db3231;
+  --color-surface-bright: #faf8fe;
+  --color-secondary-fixed-dim: #ffb3ac;
+  --color-primary-container: #002d62;
+  --color-tertiary-container: #3c2c00;
+  --color-surface-container: #efedf3;
+  --color-on-background: #1a1b1f;
+  --color-error-container: #ffdad6;
+  --color-on-secondary-container: #fffbff;
+  --color-surface-container-highest: #e3e2e7;
+  --color-on-primary-fixed: #001b3f;
+  --color-on-tertiary: #ffffff;
+  --color-on-error-container: #93000a;
+  --color-surface-variant: #e3e2e7;
+  --color-surface: #faf8fe;
+  --color-on-secondary: #ffffff;
+}
+
+.material-symbols-outlined {
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
 }
 
 body {
   margin: 0;
+  font-family: 'Inter', sans-serif;
+  background-color: #faf8fe;
 }
 
 #root {
   min-height: 100vh;
+}
+
+.sidebar-active-gradient {
+  background: linear-gradient(90deg, rgba(183, 20, 28, 0.1) 0%, rgba(183, 20, 28, 0) 100%);
 }

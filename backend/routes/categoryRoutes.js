@@ -4,8 +4,8 @@ import { createCategory, deleteCategory, getAllCategories, updateCategory } from
 const router = express.Router()
 
 router.get('/', getAllCategories)
-router.post('/create', createCategory)
-router.put('/update/:id', updateCategory)
-router.delete('/delete/:id', deleteCategory)
+router.post('/', createCategory)
+router.put('/:id', updateCategory)
+router.delete('/:id', deleteCategory)
 
 export default router

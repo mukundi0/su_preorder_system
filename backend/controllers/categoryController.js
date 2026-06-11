@@ -3,25 +3,65 @@ import MenuItem from '../models/MenuItem.js'
 
 export async function getAllCategories(req, res) {
     try {
-        const categories = await Category.aggregate([
-            { // lookup acts as a join
+        const { page = 1, limit = 10, search = '' } = req.query
+
+        const pageNum = parseInt(page, 10)
+        const limitNum = parseInt(limit, 10)
+        const skip = (pageNum - 1) * limitNum
+
+        const matchStage = search
+            ? {
+                $match: {
+                    name: { $regex: search, $options: "i" }
+                }
+            }
+            : { $match: {} }
+
+        const pipeline = [
+            matchStage,
+            {
                 $lookup: {
-                    from: "menuitems", // collection to join with
+                    from: "menuitems",
                     localField: "_id",
                     foreignField: "category",
                     as: "items"
                 }
             },
-            { // project decides which fields should appear in final output
-                $project: {
-                    name: 1, // keep name, description
-                    description: 1,
-                    itemCount: { $size: "$items" } // count how many elements are inside 'items'
+            {
+                $addFields: {
+                    itemCount: { $size: "$items" }
                 }
-            }
+            },
+            {
+                $project: {
+                    items: 0
+                }
+            },
+            { $sort: { updatedAt: -1 } }
+        ]
+
+        const totalPipeline = [
+            matchStage,
+            { $count: "total" }
+        ]
+
+        const [categories, totalResult] = await Promise.all([
+            Category.aggregate([...pipeline, { $skip: skip }, { $limit: limitNum }]),
+            Category.aggregate(totalPipeline)
         ])
 
-        res.json(categories)
+        const total = totalResult.length > 0 ? totalResult[0].total : 0
+        const totalPages = Math.ceil(total / limitNum)
+
+        res.json({
+            categories,
+            pagination: {
+                page: pageNum,
+                limit: limitNum,
+                total,
+                totalPages
+            }
+        })
     } catch (error) {
         console.error(error)
         res.status(500).json({ error: "Server error" })
@@ -31,21 +71,23 @@ export async function getAllCategories(req, res) {
 
 export async function createCategory(req, res) {
     try {
-        const { name, description } = req.body
+        const { name, description, iconName, colorTheme, updatedBy } = req.body
 
         const normalizedName = name.trim().toLowerCase()
 
-        // Check if category already exists
-        const existingCategory = await Category.findOne({ 
+        const existingCategory = await Category.findOne({
             name: normalizedName
         })
 
-        if (existingCategory) 
+        if (existingCategory)
             return res.status(409).json({ error: "Category already exists!" })
 
-        const category = await Category.create({ 
+        const category = await Category.create({
             name: normalizedName,
-            description
+            description,
+            iconName: iconName || "category",
+            colorTheme: colorTheme || "bg-primary-fixed text-primary",
+            updatedBy: updatedBy || "System"
         })
 
         res.status(201).json(category)
@@ -58,15 +100,22 @@ export async function createCategory(req, res) {
 
 export async function updateCategory(req, res) {
     try {
-        const { name, description } = req.body
+        const { name, description, iconName, colorTheme, updatedBy } = req.body
+
+        const updateData = {}
+        if (name !== undefined) updateData.name = name.trim().toLowerCase()
+        if (description !== undefined) updateData.description = description
+        if (iconName !== undefined) updateData.iconName = iconName
+        if (colorTheme !== undefined) updateData.colorTheme = colorTheme
+        if (updatedBy !== undefined) updateData.updatedBy = updatedBy
 
         const updatedCategory = await Category.findByIdAndUpdate(
             req.params.id,
-            { name, description },
+            updateData,
             { returnDocument: "after" }
         )
 
-        if (!updatedCategory) 
+        if (!updatedCategory)
             return res.status(404).json({ message: "Category not found!" })
 
         res.status(200).json(updatedCategory)
@@ -85,6 +134,34 @@ export async function deleteCategory(req, res) {
             return res.status(404).json({ message: "Category not found" })
 
         res.status(200).json(deletedCategory)
+    } catch (error) {
+        console.error(error)
+        res.status(500).json({ error: "Server error" })
+    }
+}
+
+
+export async function getStats(req, res) {
+    try {
+        const startOfMonth = new Date()
+        startOfMonth.setDate(1)
+        startOfMonth.setHours(0, 0, 0, 0)
+
+        const [totalCategories, totalItemsResult, thisMonthCategories] = await Promise.all([
+            Category.countDocuments(),
+            MenuItem.aggregate([
+                { $group: { _id: null, count: { $sum: 1 } } }
+            ]),
+            Category.countDocuments({ createdAt: { $gte: startOfMonth } })
+        ])
+
+        const totalItems = totalItemsResult.length > 0 ? totalItemsResult[0].count : 0
+
+        res.json({
+            totalCategories,
+            totalItems,
+            thisMonthCategories
+        })
     } catch (error) {
         console.error(error)
         res.status(500).json({ error: "Server error" })
