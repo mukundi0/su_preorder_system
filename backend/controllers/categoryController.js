@@ -22,8 +22,27 @@ export async function getAllCategories(req, res) {
             {
                 $lookup: {
                     from: "menuitems",
-                    localField: "_id",
-                    foreignField: "category",
+                    let: {
+                        categoryId: "$_id",
+                        categoryName: { $toLower: "$name" }
+                    },
+                    pipeline: [
+                        {
+                            $match: {
+                                $expr: {
+                                    $or: [
+                                        { $eq: ["$category", "$$categoryId"] },
+                                        {
+                                            $and: [
+                                                { $eq: [{ $type: "$category" }, "string"] },
+                                                { $eq: [{ $toLower: "$category" }, "$$categoryName"] }
+                                            ]
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    ],
                     as: "items"
                 }
             },

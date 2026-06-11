@@ -38,11 +38,14 @@ export default function MenuManagementPage() {
       if (debouncedSearch) params.append('search', debouncedSearch)
       if (categoryFilter && categoryFilter !== 'All Categories') params.append('category', categoryFilter)
       const res = await fetch(`${API_BASE}/menuitems?${params}`)
-      if (!res.ok) throw new Error('Failed to fetch')
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: `Failed to fetch items (HTTP ${res.status})` }))
+        throw new Error(err.error || err.message || `HTTP ${res.status}`)
+      }
       const data = await res.json()
       setItems(data)
     } catch (err) {
-      setError(err.message)
+      setError(err.message || 'Network error while loading menu items')
     } finally {
       setLoading(false)
     }
@@ -61,7 +64,10 @@ export default function MenuManagementPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ isAvailable: nextAvailability }),
       })
-      if (!res.ok) throw new Error('Toggle failed')
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: `Toggle failed (HTTP ${res.status})` }))
+        throw new Error(err.error || err.message || `HTTP ${res.status}`)
+      }
       const updated = await res.json()
       setItems((prev) => prev.map((row) => (row._id === item._id ? updated : row)))
     } catch (err) {
@@ -73,7 +79,10 @@ export default function MenuManagementPage() {
     if (!window.confirm(`Delete "${item.name}"? This cannot be undone.`)) return
     try {
       const res = await fetch(`${API_BASE}/menuitems/delete/${item._id}`, { method: 'DELETE' })
-      if (!res.ok) throw new Error('Delete failed')
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: `Delete failed (HTTP ${res.status})` }))
+        throw new Error(err.error || err.message || `HTTP ${res.status}`)
+      }
       fetchItems()
     } catch (err) {
       alert(err.message)
