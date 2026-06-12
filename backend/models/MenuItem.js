@@ -26,7 +26,8 @@ const MenuItemSchema = mongoose.Schema({
     },
     fullPrice: {
         type: Number,
-        min: [0, "Full price cannot be negative"]
+        min: [0, "Full price cannot be negative"],
+        required: true
     },
     description: {
         type: String,

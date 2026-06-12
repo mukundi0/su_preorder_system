@@ -11,6 +11,7 @@ import authRoutes from './routes/authRoutes.js'
 import menuitemRoutes from './routes/menuitemRoutes.js'
 import categoryRoutes from './routes/categoryRoutes.js'
 import statsRoutes from './routes/statsRoutes.js'
+import orderRoutes from './routes/orderRoutes.js'
 
 dotenv.config()
 
@@ -36,6 +37,9 @@ app.use('/api/categories', categoryRoutes)
 
 // Stats
 app.use('/api/stats', statsRoutes)
+
+// Orders
+app.use('/api/orders', orderRoutes)
 
 
 const PORT = process.env.PORT || 8000
