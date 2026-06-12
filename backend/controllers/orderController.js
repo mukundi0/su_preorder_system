@@ -23,7 +23,7 @@ export async function getOrder(req, res) {
     try {
         const { id } = req.params
 
-        const order = Order.findById(id)
+        const order = await Order.findById(id)
             .populate([
                 { path: 'user'},
                 { path: 'items.item' }
@@ -113,6 +113,7 @@ export async function updateOrder(req, res) {
         const { id } = req.params
         const { items, orderStatus } = req.body; // Updated full array of items from frontend
 
+
         // Verify order exists
         const existingOrder = await Order.findById(id)
         if (!existingOrder) {
@@ -122,58 +123,66 @@ export async function updateOrder(req, res) {
         }
 
         // Prevent modifications if the order is not pending
-        if (existingOrder.orderStatus != "Pending") {
-            res.json({
+        if (existingOrder.orderStatus != "pending") {
+            return res.json({
                 error: `Cannot update order. The order is already ${existingOrder.orderStatus}`
             })
         } 
 
-        if (!items || items.length == 0) {
-            return res.json({
-                error: "Cart cannot be empty! Cancel order instead"
-            })
-        }
+        let totalAmt = existingOrder.totalAmt
+        let updatedItems = existingOrder.items
 
-        // Recalculate totalAmt
-        let totalAmt = 0;
+        if (items && items.length > 0) {
+            // Recalculate totalAmt
+            let runningTotal = 0
 
-        for (const orderItem of items) {
-            const menuItem = await MenuItem.findById(orderItem.item)
+            for (const orderItem of items) {
+                const menuItem = await MenuItem.findById(orderItem.item)
 
-            if (!menuItem) {
-                return res.json({
-                    error: `Item with ID ${orderItem.item} not found!`
-                })
-            }
-
-            // Calculate price
-            let itemPrice;
-            if (orderItem.servingSize == "half") {
-                if (!menuItem.halfPrice) {
-                    return res.json({ error: `Menu Item: ${menuItem.name} does not have half Price!` })
+                if (!menuItem) {
+                    return res.json({
+                        error: `Item with ID ${orderItem.item} not found!`
+                    })
                 }
 
-                itemPrice = menuItem.halfPrice;
-            } else if (orderItem.servingSize == "full") {
-                itemPrice = menuItem.fullPrice;
-            } else {
-                return res.json({ error: `Menu item ${menuItem.name} does not have selected serving size` })
+                // Calculate price
+                let itemPrice;
+                if (orderItem.servingSize == "half") {
+                    if (!menuItem.halfPrice) {
+                        return res.json({ error: `Menu Item: ${menuItem.name} does not have half Price!` })
+                    }
+
+                    itemPrice = menuItem.halfPrice;
+                } else if (orderItem.servingSize == "full") {
+                    itemPrice = menuItem.fullPrice;
+                } else {
+                    return res.json({ error: `Menu item ${menuItem.name} does not have selected serving size` })
+                }
+
+                // Add to running total
+                runningTotal += itemPrice * orderItem.qty
             }
 
-            // Add to running total
-            totalAmt += itemPrice * orderItem.qty
+            totalAmt = runningTotal
+            updatedItems = items
         }
 
+        const finalStatus = orderStatus ? orderStatus.toLowerCase() : existingOrder.orderStatus;
+
         const updatedOrder = await Order.findByIdAndUpdate(
-            orderId, 
-            { items, totalAmt },
+            id, 
+            { 
+                items: updatedItems, 
+                totalAmt,
+                orderStatus: finalStatus
+            },
             { new: true, runValidators: true }
         ).populate([
             { path: 'user'},
             { path: 'items.item' }
         ])
 
-        return res.json(200).json(updatedOrder)
+        return res.json(updatedOrder)
     } catch (error) {
         console.error("Error in updateOrder controller:", error)
         res.status(500).json({ error: "Server error" })
@@ -183,7 +192,7 @@ export async function updateOrder(req, res) {
 // For cancelling the order
 export async function deleteOrder(req, res) {
     try {
-        const deletedOrder = await MenuItem.findByIdAndDelete(req.params.id)
+        const deletedOrder = await Order.findByIdAndDelete(req.params.id)
 
         if (!deletedOrder)
             return res.status(404).json({ message: "Order not found" })
