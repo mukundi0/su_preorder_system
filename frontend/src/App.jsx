@@ -5,6 +5,7 @@ import OrdersPage from './pages/OrdersPage'
 import MenuManagementPage from './pages/MenuManagementPage'
 import SettingsPage from './pages/SettingsPage'
 import StudentOrderPage from './pages/StudentOrderPage'
+import Checkout from './pages/Checkout'
 
 import axios from "axios"
 
@@ -19,6 +20,7 @@ function App() {
     <Routes>
       <Route path="/" element={<StudentOrderPage />} />
       <Route path="/order" element={<Navigate to="/" replace />} />
+      <Route path="/checkout" element={<Checkout />} />
       <Route path="/dashboard" element={<DashboardPage />} />
       <Route path="/orders" element={<OrdersPage />} />
       <Route path="/menu-management" element={<MenuManagementPage />} />

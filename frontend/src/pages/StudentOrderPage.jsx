@@ -1,10 +1,12 @@
 import axios from "axios"
 import { useState, useEffect } from "react"
+import { useNavigate } from 'react-router-dom'
 
 import SU_LOGO from '../assets/sulogo.png'
 import HERO_IMAGE from '../assets/heroImage.png'
 
 export default function StudentOrderPage() {
+  const navigate = useNavigate()
   const [menuItems, setMenuItems] = useState([])
   const [searchInput, setSearchInput] = useState('')
 
@@ -136,7 +138,7 @@ export default function StudentOrderPage() {
 
   const greeting = getGreeting()
   const checkoutDisabled = cart.length === 0
-  const PACKAGING_FEE = 20
+  const PACKAGING_FEE = 0
 
   const cartCount = cart.reduce((sum, entry) => sum + entry.qty, 0)
   const subtotal = cart.reduce((sum, entry) => sum + getCartItemUnitPrice(entry) * entry.qty, 0)
@@ -146,6 +148,18 @@ export default function StudentOrderPage() {
     subtotal,
     packaging,
     total: subtotal + packaging,
+  }
+
+  const requestCheckoutPage = () => {
+    if (checkoutDisabled) return
+
+    try {
+      localStorage.setItem('checkout_cart', JSON.stringify(cart))
+    } catch {
+      // Ignore storage errors and continue with route state.
+    }
+
+    navigate('/checkout', { state: { cart } })
   }
 
   const filteredMenuItems = menuItems.filter((item) => {
@@ -229,7 +243,6 @@ export default function StudentOrderPage() {
           <nav className="hidden md:flex items-center gap-6 h-full">
             <button className="text-primary border-b-2 border-primary h-full flex items-center px-2 font-semibold bg-transparent cursor-pointer">Menu</button>
             <button className="text-on-surface-variant h-full flex items-center px-2 transition-colors hover:bg-surface-container-low bg-transparent cursor-pointer rounded">Orders</button>
-            <button className="text-on-surface-variant h-full flex items-center px-2 transition-colors hover:bg-surface-container-low bg-transparent cursor-pointer rounded">Wallet</button>
           </nav>
         </div>
 
@@ -378,7 +391,7 @@ export default function StudentOrderPage() {
               </div>
 
               <button
-                onClick={() => {}}
+                onClick={requestCheckoutPage}
                 disabled={checkoutDisabled}
                 className="w-full py-4 bg-primary text-on-primary rounded-lg font-bold text-base hover:bg-primary-container transition-all flex items-center justify-center gap-2 shadow-md disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
               >
@@ -457,7 +470,7 @@ export default function StudentOrderPage() {
               </div>
 
               <button
-                onClick={() => {}}
+                onClick={requestCheckoutPage}
                 disabled={checkoutDisabled}
                 className="w-full py-4 bg-primary text-on-primary rounded-lg font-bold text-base hover:bg-primary-container transition-all flex items-center justify-center gap-2 shadow-md disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
               >
