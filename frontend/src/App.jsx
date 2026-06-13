@@ -6,6 +6,14 @@ import MenuManagementPage from './pages/MenuManagementPage'
 import SettingsPage from './pages/SettingsPage'
 import StudentOrderPage from './pages/StudentOrderPage'
 
+import axios from "axios"
+
+// Set axios defaults
+const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000/api/"
+
+axios.defaults.baseURL = BASE_URL
+axios.defaults.withCredentials = true
+
 function App() {
   return (
     <Routes>
