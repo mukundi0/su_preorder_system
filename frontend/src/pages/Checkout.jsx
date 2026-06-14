@@ -87,7 +87,6 @@ export default function Checkout() {
     }
   }
 
-
   // @TODO: Replace with useAuth()
   useEffect(() => {
     let active = true
