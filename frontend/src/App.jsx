@@ -18,6 +18,7 @@ import SettingsPage from './pages/SettingsPage'
 import StudentOrderPage from './pages/StudentOrderPage'
 import Checkout from './pages/Checkout'
 import OrderTracking from './pages/OrderTracking'
+import WalletPage from './pages/WalletPage'
 import Unauthorized from "./pages/Unauthorized"
 import ProtectedRoute from "./components/ProtectedRoute"
 import RootRedirect from "./components/RootRedirect"
@@ -51,6 +52,7 @@ function App() {
               <Route path="/student" element={<StudentOrderPage />} />
               <Route path="/checkout" element={<Checkout />} />
               <Route path="/orders/:orderId/track" element={<OrderTracking />} />
+              <Route path="/wallet" element={<WalletPage />} />
             </Route>
 
             <Route

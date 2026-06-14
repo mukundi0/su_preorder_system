@@ -39,8 +39,9 @@ const OrderSchema = new mongoose.Schema({
     qrCode:        { type: String },
     qrPin:         { type: String },
     orderNumber:   { type: String },
-    pickupCounter: { type: String, default: 'Counter 1' },
-    collectedAt:   { type: Date },
+    pickupCounter:  { type: String, default: 'Counter 1' },
+    collectedAt:    { type: Date },
+    paymentMethod:  { type: String, enum: ['mpesa', 'wallet'], default: 'mpesa' },
 }, { timestamps: true })
 
 const Order = mongoose.model('Order', OrderSchema)

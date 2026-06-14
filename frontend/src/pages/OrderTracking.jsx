@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import SU_LOGO from '../assets/sulogo.png'
 import StudentBottomNav from '../components/StudentBottomNav'
+import { generateReceipt } from '../utils/generateReceipt'
 
 const STATUS_STEPS = ['received', 'preparing', 'ready']
 const STATUS_LABELS = { received: 'Received', preparing: 'Preparing', ready: 'Ready' }
@@ -55,6 +56,17 @@ export default function OrderTracking() {
   const navigate = useNavigate()
   const [order, setOrder] = useState(null)
   const [error, setError] = useState(null)
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false)
+
+  const handleViewReceipt = async () => {
+    if (!order) return
+    setIsGeneratingPdf(true)
+    try {
+      await generateReceipt(order, SU_LOGO)
+    } finally {
+      setIsGeneratingPdf(false)
+    }
+  }
 
   const fetchOrder = async () => {
     try {
@@ -123,7 +135,7 @@ export default function OrderTracking() {
           <nav className="hidden md:flex items-center h-full">
             <button onClick={() => navigate('/student')} className="text-on-surface-variant h-full flex items-center px-4 transition-colors hover:bg-surface-container-low bg-transparent cursor-pointer text-sm">Menu</button>
             <button className="text-primary border-b-2 border-primary h-full flex items-center px-4 font-semibold bg-transparent cursor-pointer text-sm">Orders</button>
-            <button className="text-on-surface-variant h-full flex items-center px-4 transition-colors hover:bg-surface-container-low bg-transparent cursor-pointer text-sm">Wallet</button>
+            <button onClick={() => navigate('/wallet')} className="text-on-surface-variant h-full flex items-center px-4 transition-colors hover:bg-surface-container-low bg-transparent cursor-pointer text-sm">Wallet</button>
             <button className="text-on-surface-variant h-full flex items-center px-4 transition-colors hover:bg-surface-container-low bg-transparent cursor-pointer text-sm">Profile</button>
           </nav>
         </div>
@@ -239,9 +251,13 @@ export default function OrderTracking() {
             <span className="material-symbols-outlined text-lg">support_agent</span>
             Report an Issue
           </button>
-          <button className="w-full py-3 rounded-lg text-primary text-xs font-semibold tracking-widest uppercase flex justify-center items-center gap-2 active:bg-surface-container-low transition-colors bg-transparent cursor-pointer">
+          <button
+            onClick={handleViewReceipt}
+            disabled={isGeneratingPdf}
+            className="w-full py-3 rounded-lg text-primary text-xs font-semibold tracking-widest uppercase flex justify-center items-center gap-2 active:bg-surface-container-low transition-colors bg-transparent cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+          >
             <span className="material-symbols-outlined text-lg">receipt_long</span>
-            View Receipt
+            {isGeneratingPdf ? 'Generating…' : 'View Receipt'}
           </button>
         </section>
 

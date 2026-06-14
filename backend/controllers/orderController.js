@@ -1,6 +1,7 @@
 import MenuItem from "../models/MenuItem.js"
 import Order from "../models/Order.js"
 import User from "../models/User.js"
+import WalletTransaction from "../models/WalletTransaction.js"
 import generateQRCode from "../utils/generateQR.js"
 import { v4 as uuidv4 } from "uuid"
 
@@ -40,7 +41,7 @@ export async function getOrder(req, res) {
 
 export async function createOrder(req, res) {
     try {
-        const { userId, items } = req.body
+        const { userId, items, paymentMethod } = req.body
 
         // @TODO: Replace with JWT tokens later on
         const user = await User.findById(userId)
@@ -85,11 +86,19 @@ export async function createOrder(req, res) {
             totalAmt += itemPrice * orderItem.qty
         }
         
+        // Validate wallet balance before creating order
+        if (paymentMethod === 'wallet') {
+            if (user.walletBalance < totalAmt) {
+                return res.status(400).json({ error: 'Insufficient wallet balance' })
+            }
+        }
+
         // Create order
         const order = await Order.create({
             user: user._id,
             totalAmt,
-            items
+            items,
+            paymentMethod: paymentMethod || 'mpesa',
         })
 
         // Generate QR code
@@ -110,6 +119,19 @@ export async function createOrder(req, res) {
         order.orderNumber = orderNumber
         order.orderStatus = 'received'
         await order.save()
+
+        // Deduct from wallet if payment method is wallet
+        if (paymentMethod === 'wallet') {
+            await User.findByIdAndUpdate(userId, { $inc: { walletBalance: -totalAmt } })
+            await WalletTransaction.create({
+                user: userId,
+                type: 'debit',
+                amount: totalAmt,
+                description: `Order Payment - ${orderNumber}`,
+                reference: orderNumber,
+                status: 'completed',
+            })
+        }
 
         const populatedOrder = await Order.findById(order._id)
             .populate([

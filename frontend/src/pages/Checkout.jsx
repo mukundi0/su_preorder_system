@@ -1,10 +1,9 @@
 import axios from 'axios'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useCart } from '../context/CartContext'
 import { useAuth } from '../context/AuthContext'
 
-const WALLET_BALANCE = 1200
 
 function formatCurrency(value) {
   return `KES ${(Number(value) || 0).toLocaleString()}`
@@ -25,6 +24,11 @@ export default function Checkout() {
   const [isProcessing, setIsProcessing] = useState(false)
   const [requestError, setRequestError] = useState('')
   const [successMessage, setSuccessMessage] = useState('')
+  const [walletBalance, setWalletBalance] = useState(0)
+
+  useEffect(() => {
+    axios.get('/wallet').then(({ data }) => setWalletBalance(data.balance)).catch(() => {})
+  }, [])
 
   const { user, loading } = useAuth()
 
@@ -196,7 +200,7 @@ export default function Checkout() {
                   Wallet Balance
                 </p>
                 <p className="text-headline-sm font-headline-sm font-bold mt-1">
-                  {formatCurrency(WALLET_BALANCE)}
+                  {formatCurrency(walletBalance)}
                 </p>
               </div>
             </div>
@@ -288,7 +292,7 @@ export default function Checkout() {
                   <div>
                     <span className="block text-body-md font-body-md font-bold">Digital Wallet</span>
                     <span className="block text-label-md font-label-md text-on-surface-variant mt-0.5">
-                      Balance: {formatCurrency(WALLET_BALANCE)}
+                      Balance: {formatCurrency(walletBalance)}
                     </span>
                   </div>
                 </div>
