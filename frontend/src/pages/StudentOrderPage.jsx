@@ -155,6 +155,16 @@ export default function StudentOrderPage() {
     )
   )
 
+  const handleLogout = async () => {
+    try {
+      await axios.post('/auth/logout')
+
+      navigate('/login')
+    } catch (error) {
+      console.error(error)
+    }
+  }
+
   return (
     <div className="min-h-screen bg-background text-on-background font-body pb-24 lg:pb-0">
       <header className="sticky top-0 z-50 flex justify-between items-center w-full px-4 md:px-12 h-16 bg-surface border-b border-outline-variant">
@@ -202,7 +212,7 @@ export default function StudentOrderPage() {
             <span className="absolute top-2 right-2 w-2 h-2 bg-secondary rounded-full" />
           </button>
 
-          <button onClick={() => {}} className="text-on-surface-variant hover:bg-surface-container-low transition-colors rounded-full p-2 bg-transparent cursor-pointer" title="Logout">
+          <button onClick={handleLogout} className="text-on-surface-variant hover:bg-surface-container-low transition-colors rounded-full p-2 bg-transparent cursor-pointer" title="Logout">
             <span className="material-symbols-outlined">logout</span>
           </button>
         </div>

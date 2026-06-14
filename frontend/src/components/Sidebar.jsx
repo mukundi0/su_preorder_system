@@ -1,11 +1,11 @@
 import { NavLink } from 'react-router-dom'
 
 const navItems = [
-  { name: 'Dashboard', icon: 'dashboard', path: '/dashboard' },
-  { name: 'Orders', icon: 'receipt_long', path: '/orders' },
-  { name: 'Menu Management', icon: 'restaurant_menu', path: '/menu-management' },
-  { name: 'Categories', icon: 'category', path: '/categories' },
-  { name: 'Settings', icon: 'settings', path: '/settings' },
+  { name: 'Dashboard', icon: 'dashboard', path: '/admin/dashboard' },
+  { name: 'Orders', icon: 'receipt_long', path: '/admin/orders' },
+  { name: 'Menu Management', icon: 'restaurant_menu', path: '/admin/menu-management' },
+  { name: 'Categories', icon: 'category', path: '/admin/categories' },
+  { name: 'Settings', icon: 'settings', path: '/admin/settings' },
 ]
 
 const bottomItems = [

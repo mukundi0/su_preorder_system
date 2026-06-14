@@ -17,6 +17,9 @@ import MenuManagementPage from './pages/MenuManagementPage'
 import SettingsPage from './pages/SettingsPage'
 import StudentOrderPage from './pages/StudentOrderPage'
 import Checkout from './pages/Checkout'
+import Unauthorized from "./pages/Unauthorized"
+import ProtectedRoute from "./components/ProtectedRoute"
+import RootRedirect from "./components/RootRedirect"
 
 
 // Set axios defaults
@@ -31,19 +34,40 @@ function App() {
       <AuthContextProvider>
         <CartProvider>
           <Routes>
-            <Route path="/" element={<StudentOrderPage />} />
-
             <Route path='/login' element={<Login />} />
             <Route path='/register' element={<Register />} />
             <Route path='/verify-email' element={<VerifyEmail />} />
-            
-            <Route path="/order" element={<Navigate to="/" replace />} />
-            <Route path="/checkout" element={<Checkout />} />
-            <Route path="/dashboard" element={<DashboardPage />} />
-            <Route path="/orders" element={<OrdersPage />} />
-            <Route path="/menu-management" element={<MenuManagementPage />} />
-            <Route path="/categories" element={<CategoryManagement />} />
-            <Route path="/settings" element={<SettingsPage />} />
+
+            <Route path="/" element={<RootRedirect />} />
+
+            <Route
+              element={
+                <ProtectedRoute
+                  allowedRoles={["student"]}
+                />
+              }
+            >
+              <Route path="/student" element={<StudentOrderPage />} />
+              <Route path="/checkout" element={<Checkout />} />
+            </Route>
+
+            <Route
+              path="/admin"
+              element={
+                <ProtectedRoute
+                  allowedRoles={["kitchen_staff", "admin"]}
+                />
+              }
+            >
+              <Route index element={<Navigate to="dashboard" replace />} />
+              <Route path="dashboard" element={<DashboardPage />} />
+              <Route path="orders" element={<OrdersPage />} />
+              <Route path="menu-management" element={<MenuManagementPage />} />
+              <Route path="categories" element={<CategoryManagement />} />
+              <Route path="settings" element={<SettingsPage />} />
+            </Route>
+
+            <Route path="/unauthorized" element={<Unauthorized />} />
 
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
