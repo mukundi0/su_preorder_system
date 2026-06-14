@@ -1,89 +1,32 @@
 import axios from "axios"
 import { useState, useEffect } from "react"
+import { useNavigate } from 'react-router-dom'
 
 import SU_LOGO from '../assets/sulogo.png'
 import HERO_IMAGE from '../assets/heroImage.png'
+import { useCart } from "../context/CartContext"
 
 export default function StudentOrderPage() {
+  const navigate = useNavigate()
   const [menuItems, setMenuItems] = useState([])
   const [searchInput, setSearchInput] = useState('')
 
   const [categories, setCategories] = useState([])
   const [selectedCategory, setSelectedCategory] = useState('All items')
 
-  const [cart, setCart] = useState([])
-
   const [isMobileCartOpen, setIsMobileCartOpen] = useState(false)
 
-  const getCartItemUnitPrice = (cartItem) => {
-    if (cartItem.servingSize === 'half' && cartItem.item.halfPrice) {
-      return cartItem.item.halfPrice
-    }
-    return cartItem.item.fullPrice || 0
-  }
+  const {
+    cart,
+    addItemToCart,
+    removeItemFromCart,
+    updateCartItemQty,
+    cartCount,
+    cartTotals,
+    getCartItemUnitPrice,
+    checkoutDisabled
+  } = useCart()
 
-  const addItemToCart = (itemId, servingSize = 'full') => {
-    const normalizedId = String(itemId)
-    const sourceItem = menuItems.find((item) => String(item._id) === normalizedId)
-
-    if (!sourceItem) {
-      console.warn(`Item ${normalizedId} is no longer available on the menu.`)
-      return
-    }
-
-    setCart((previous) => {
-      const existing = previous.find(
-        (entry) => entry.item._id === normalizedId && entry.servingSize === servingSize,
-      )
-
-      if (existing) {
-        return previous.map((entry) => (entry === existing ? { ...entry, qty: entry.qty + 1 } : entry))
-      }
-
-      return [
-        ...previous,
-        {
-          item: {
-            _id: normalizedId,
-            name: sourceItem.name,
-            fullPrice: sourceItem.fullPrice || sourceItem.price || 0,
-            halfPrice: sourceItem.halfPrice,
-            imageUrl: sourceItem.imageUrl || '',
-          },
-          servingSize,
-          qty: 1,
-        },
-      ]
-    })
-  }
-
-  const removeItemFromCart = (itemId, servingSize = 'full') => {
-    const normalizedId = String(itemId)
-    setCart((previous) =>
-      previous.filter(
-        (entry) => !(entry.item._id === normalizedId && entry.servingSize === servingSize),
-      ),
-    )
-  }
-
-  const updateCartItemQty = (itemId, delta, servingSize = 'full') => {
-    const normalizedId = String(itemId)
-
-    setCart((previous) => {
-      const existing = previous.find(
-        (entry) => entry.item._id === normalizedId && entry.servingSize === servingSize,
-      )
-
-      if (!existing) return previous
-
-      const nextQty = existing.qty + delta
-      if (nextQty <= 0) {
-        return previous.filter((entry) => entry !== existing)
-      }
-
-      return previous.map((entry) => (entry === existing ? { ...entry, qty: nextQty } : entry))
-    })
-  }
 
   function getGreeting() {
     const hour = new Date().getHours()
@@ -135,18 +78,13 @@ export default function StudentOrderPage() {
   }, [])
 
   const greeting = getGreeting()
-  const checkoutDisabled = cart.length === 0
-  const PACKAGING_FEE = 20
 
-  const cartCount = cart.reduce((sum, entry) => sum + entry.qty, 0)
-  const subtotal = cart.reduce((sum, entry) => sum + getCartItemUnitPrice(entry) * entry.qty, 0)
-  const packaging = cart.length > 0 ? PACKAGING_FEE : 0
+  const requestCheckoutPage = () => {
+    if (checkoutDisabled) return
 
-  const cartTotals = {
-    subtotal,
-    packaging,
-    total: subtotal + packaging,
+    navigate('/checkout')
   }
+
 
   const filteredMenuItems = menuItems.filter((item) => {
     const matchesCategory =
@@ -229,7 +167,6 @@ export default function StudentOrderPage() {
           <nav className="hidden md:flex items-center gap-6 h-full">
             <button className="text-primary border-b-2 border-primary h-full flex items-center px-2 font-semibold bg-transparent cursor-pointer">Menu</button>
             <button className="text-on-surface-variant h-full flex items-center px-2 transition-colors hover:bg-surface-container-low bg-transparent cursor-pointer rounded">Orders</button>
-            <button className="text-on-surface-variant h-full flex items-center px-2 transition-colors hover:bg-surface-container-low bg-transparent cursor-pointer rounded">Wallet</button>
           </nav>
         </div>
 
@@ -331,7 +268,7 @@ export default function StudentOrderPage() {
                       <div className="flex justify-between items-end mt-2 md:mt-4">
                         <span className="font-bold text-base md:text-lg text-primary">{formatCurrency(item.fullPrice)}</span>
                         <button
-                          onClick={() => addItemToCart(item._id)}
+                          onClick={() => addItemToCart(item)}
                           className="w-8 h-8 md:w-10 md:h-10 bg-primary text-on-primary rounded-full md:rounded-lg flex items-center justify-center hover:bg-primary-container transition-colors shadow-sm cursor-pointer"
                         >
                           <span className="material-symbols-outlined">add</span>
@@ -378,7 +315,7 @@ export default function StudentOrderPage() {
               </div>
 
               <button
-                onClick={() => {}}
+                onClick={requestCheckoutPage}
                 disabled={checkoutDisabled}
                 className="w-full py-4 bg-primary text-on-primary rounded-lg font-bold text-base hover:bg-primary-container transition-all flex items-center justify-center gap-2 shadow-md disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
               >
@@ -457,7 +394,7 @@ export default function StudentOrderPage() {
               </div>
 
               <button
-                onClick={() => {}}
+                onClick={requestCheckoutPage}
                 disabled={checkoutDisabled}
                 className="w-full py-4 bg-primary text-on-primary rounded-lg font-bold text-base hover:bg-primary-container transition-all flex items-center justify-center gap-2 shadow-md disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
               >
