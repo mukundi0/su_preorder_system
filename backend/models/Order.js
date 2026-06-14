@@ -39,9 +39,13 @@ const OrderSchema = new mongoose.Schema({
     qrCode:        { type: String },
     qrPin:         { type: String },
     orderNumber:   { type: String },
-    pickupCounter:  { type: String, default: 'Counter 1' },
-    collectedAt:    { type: Date },
-    paymentMethod:  { type: String, enum: ['mpesa', 'wallet'], default: 'mpesa' },
+    pickupCounter:          { type: String, default: 'Counter 1' },
+    collectedAt:            { type: Date },
+    paymentMethod:          { type: String, enum: ['mpesa', 'wallet'], default: 'mpesa' },
+    // M-Pesa payment tracking
+    paymentStatus:          { type: String, enum: ['pending', 'paid', 'failed'], default: 'pending' },
+    mpesaCheckoutRequestId: { type: String },   // returned by Safaricom after STK push
+    mpesaReceiptNumber:     { type: String },   // returned by Safaricom in callback
 }, { timestamps: true })
 
 const Order = mongoose.model('Order', OrderSchema)

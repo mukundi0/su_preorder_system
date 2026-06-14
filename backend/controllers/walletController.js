@@ -18,6 +18,8 @@ export async function getWallet(req, res) {
   }
 }
 
+// Admin / sandbox convenience top-up (bypasses M-Pesa).
+// Real wallet top-ups go through POST /api/mpesa/topup (STK push).
 export async function topUp(req, res) {
   try {
     const userId = req.user.id
@@ -36,12 +38,12 @@ export async function topUp(req, res) {
     ).select('walletBalance')
 
     const tx = await WalletTransaction.create({
-      user: userId,
-      type: 'credit',
-      amount: numAmount,
-      description: 'Wallet Top Up - M-Pesa',
-      reference: `MPESA-${Date.now()}`,
-      status: 'completed',
+      user:        userId,
+      type:        'credit',
+      amount:      numAmount,
+      description: 'Manual Top Up',
+      reference:   `MANUAL-${Date.now()}`,
+      status:      'completed',
     })
 
     res.json({ balance: user.walletBalance, transaction: tx })

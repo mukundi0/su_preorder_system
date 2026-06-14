@@ -93,35 +93,53 @@ export async function createOrder(req, res) {
             }
         }
 
+        // Generate order number first (needed for QR payload and M-Pesa reference)
+        const shortId     = uuidv4().replace(/-/g, '').slice(0, 4).toUpperCase()
+        const orderNumber = `STR-${shortId}`
+
+        const method = paymentMethod || 'mpesa'
+
+        // Wallet: deduct immediately, activate order, generate QR
+        // M-Pesa: create order in 'pending' state — callback activates it after payment
+        let initialStatus  = method === 'wallet' ? 'received' : 'pending'
+        let paymentStatus  = method === 'wallet' ? 'paid'     : 'pending'
+        let qrDataUrl      = null
+        let qrPin          = null
+
+        if (method === 'wallet') {
+            const qrPayload = JSON.stringify({
+                orderId:     'PLACEHOLDER', // filled in after order.create below
+                orderNumber,
+                userId:      user._id.toString(),
+                timestamp:   new Date().toISOString()
+            })
+            qrDataUrl = await generateQRCode(qrPayload)
+            qrPin     = shortId
+        }
+
         // Create order
         const order = await Order.create({
             user: user._id,
             totalAmt,
             items,
-            paymentMethod: paymentMethod || 'mpesa',
-        })
-
-        // Generate QR code
-        const shortId     = uuidv4().replace(/-/g, '').slice(0, 4).toUpperCase()
-        const orderNumber = `STR-${shortId}`
-
-        const qrPayload = JSON.stringify({
-            orderId:     order._id.toString(),
+            paymentMethod:  method,
+            paymentStatus,
             orderNumber,
-            userId:      order.user.toString(),
-            timestamp:   new Date().toISOString()
+            orderStatus:    initialStatus,
+            ...(qrDataUrl ? { qrCode: qrDataUrl, qrPin } : {}),
         })
 
-        const qrDataUrl = await generateQRCode(qrPayload)
+        // For wallet: regenerate QR with the real orderId now that we have it
+        if (method === 'wallet') {
+            const qrPayload = JSON.stringify({
+                orderId:     order._id.toString(),
+                orderNumber,
+                userId:      order.user.toString(),
+                timestamp:   new Date().toISOString()
+            })
+            order.qrCode = await generateQRCode(qrPayload)
+            await order.save()
 
-        order.qrCode      = qrDataUrl
-        order.qrPin       = shortId
-        order.orderNumber = orderNumber
-        order.orderStatus = 'received'
-        await order.save()
-
-        // Deduct from wallet if payment method is wallet
-        if (paymentMethod === 'wallet') {
             await User.findByIdAndUpdate(userId, { $inc: { walletBalance: -totalAmt } })
             await WalletTransaction.create({
                 user: userId,

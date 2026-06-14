@@ -21,7 +21,9 @@ export default function Checkout() {
   const navigate = useNavigate()
 
   const [paymentMethod, setPaymentMethod] = useState('mpesa')
+  const [mpesaPhone, setMpesaPhone] = useState('')
   const [isProcessing, setIsProcessing] = useState(false)
+  const [awaitingMpesa, setAwaitingMpesa] = useState(false) // true while polling for callback
   const [requestError, setRequestError] = useState('')
   const [successMessage, setSuccessMessage] = useState('')
   const [walletBalance, setWalletBalance] = useState(0)
@@ -32,18 +34,17 @@ export default function Checkout() {
 
   const { user, loading } = useAuth()
 
-  const { 
-    cart, 
+  const {
+    cart,
     cartTotals,
     updateCartItemQty,
     clearCart,
     getCartItemUnitPrice
   } = useCart()
 
-  // Keep frontend totals aligned with backend createOrder logic (sum of item prices).
   const total = cartTotals.total
   const isCheckoutEmpty = cart.length === 0
-  const canConfirm = !isCheckoutEmpty && !isProcessing && !!user?._id
+  const canConfirm = !isCheckoutEmpty && !isProcessing && !awaitingMpesa && !!user?._id
 
   const statusMessage = successMessage || requestError || (!loading && !user?._id
     ? 'Sign in is required to place an order.'
@@ -55,14 +56,52 @@ export default function Checkout() {
       ? 'text-error'
       : 'text-on-surface-variant'
 
+  // Poll the order every 3 seconds until M-Pesa callback has updated its status
+  function pollOrderUntilPaid(orderId) {
+    setAwaitingMpesa(true)
+    setSuccessMessage('Check your phone — enter your M-Pesa PIN to complete payment.')
+
+    const interval = setInterval(async () => {
+      try {
+        const { data } = await axios.get(`/orders/${orderId}`)
+
+        if (data.paymentStatus === 'paid') {
+          clearInterval(interval)
+          clearCart()
+          navigate(`/orders/${orderId}/track`)
+        } else if (data.paymentStatus === 'failed' || data.orderStatus === 'cancelled') {
+          clearInterval(interval)
+          setAwaitingMpesa(false)
+          setSuccessMessage('')
+          setRequestError('Payment cancelled or failed. Please try again.')
+        }
+      } catch {
+        // network blip — keep polling
+      }
+    }, 3000)
+
+    // Give up after 2 minutes (Safaricom STK push times out at 60 s)
+    setTimeout(() => {
+      clearInterval(interval)
+      if (awaitingMpesa) {
+        setAwaitingMpesa(false)
+        setSuccessMessage('')
+        setRequestError('Payment timed out. Please check if payment went through before retrying.')
+      }
+    }, 120_000)
+  }
+
   const handleConfirmPay = async () => {
     if (!user?._id) {
       setRequestError('Sign in is required to place an order.')
       return
     }
-
     if (isCheckoutEmpty) {
       setRequestError('Your cart is empty.')
+      return
+    }
+    if (paymentMethod === 'mpesa' && !mpesaPhone.trim()) {
+      setRequestError('Enter your M-Pesa phone number.')
       return
     }
 
@@ -71,17 +110,32 @@ export default function Checkout() {
     setIsProcessing(true)
 
     try {
-      const payload = {
+      // Step 1: Create the order (pending for M-Pesa, received for wallet)
+      const { data: order } = await axios.post('/orders/create', {
         userId: user._id,
-        items: toPayloadItems(cart),
+        items:  toPayloadItems(cart),
         paymentMethod,
+      })
+      if (order?.error) throw new Error(order.error)
+
+      if (paymentMethod === 'wallet') {
+        // Wallet payment is instant — go straight to tracking
+        clearCart()
+        navigate(`/orders/${order._id}/track`)
+        return
       }
 
-      const { data } = await axios.post('/orders/create', payload)
-      if (data?.error) throw new Error(data.error)
+      // Step 2 (M-Pesa only): trigger the STK push to the customer's phone
+      const { data: mpesa } = await axios.post('/mpesa/pay-order', {
+        orderId: order._id,
+        phone:   mpesaPhone.trim(),
+      })
+      if (mpesa?.error) throw new Error(mpesa.error)
 
-      clearCart()
-      navigate(`/orders/${data._id}/track`)
+      // Step 3: poll until Safaricom's callback updates the order
+      setIsProcessing(false)
+      pollOrderUntilPaid(order._id)
+
     } catch (error) {
       setRequestError(error?.message || 'Failed to place order. Please try again.')
     } finally {
@@ -241,7 +295,7 @@ export default function Checkout() {
                   }`}
                 />
               </div>
-              <div className="flex-1 flex justify-between items-center">
+              <div className="flex-1 flex flex-col gap-3">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 bg-[#49B249] rounded flex items-center justify-center text-white font-bold text-xs">
                     M
@@ -253,6 +307,16 @@ export default function Checkout() {
                     </span>
                   </div>
                 </div>
+                {paymentMethod === 'mpesa' && (
+                  <input
+                    type="tel"
+                    placeholder="Phone number e.g. 0712345678"
+                    value={mpesaPhone}
+                    onChange={(e) => setMpesaPhone(e.target.value)}
+                    onClick={(e) => e.stopPropagation()} // prevent radio toggle
+                    className="w-full border border-border-subtle rounded-lg px-3 py-2 text-body-md font-body-md focus:outline-none focus:ring-2 focus:ring-primary bg-surface"
+                  />
+                )}
               </div>
             </label>
 
@@ -315,7 +379,7 @@ export default function Checkout() {
             disabled={!canConfirm}
             className="w-full bg-primary text-on-primary py-4 rounded-xl text-headline-sm font-headline-sm font-bold hover:bg-on-primary-fixed-variant transition-colors shadow-sm disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
           >
-            {isProcessing ? 'Processing...' : 'Confirm & Pay'}
+            {awaitingMpesa ? 'Waiting for M-Pesa...' : isProcessing ? 'Processing...' : 'Confirm & Pay'}
           </button>
           {statusMessage && <p className={`text-sm mt-3 ${statusClass}`}>{statusMessage}</p>}
         </div>
@@ -333,8 +397,8 @@ export default function Checkout() {
           disabled={!canConfirm}
           className="w-full bg-primary text-on-primary py-3.5 rounded-xl text-body-lg font-body-lg font-bold hover:opacity-90 transition-opacity active:scale-[0.98] shadow-sm flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
         >
-          {isProcessing ? 'Processing...' : 'Confirm & Pay'}
-          {!isProcessing && <span className="material-symbols-outlined text-[20px]">arrow_forward</span>}
+          {awaitingMpesa ? 'Waiting for M-Pesa...' : isProcessing ? 'Processing...' : 'Confirm & Pay'}
+          {!isProcessing && !awaitingMpesa && <span className="material-symbols-outlined text-[20px]">arrow_forward</span>}
         </button>
         {statusMessage && <p className={`text-xs mt-2 text-center ${statusClass}`}>{statusMessage}</p>}
       </div>
