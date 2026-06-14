@@ -1,51 +1,12 @@
 import axios from 'axios'
-import { useEffect, useMemo, useState } from 'react'
-import { useLocation, useNavigate } from 'react-router-dom'
+import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { useCart } from '../context/CartContext'
 
 const WALLET_BALANCE = 1200
 
 function formatCurrency(value) {
   return `KES ${(Number(value) || 0).toLocaleString()}`
-}
-
-function normalizeCart(rawCart = []) {
-  if (!Array.isArray(rawCart)) return []
-
-  return rawCart
-    .map((entry, index) => {
-      const source = entry?.item || entry
-      const itemId = String(source?._id || entry?.itemId || '')
-
-      if (!itemId) return null
-
-      const servingSize = entry?.servingSize === 'half' ? 'half' : 'full'
-      const qty = Math.max(1, Number(entry?.qty) || 1)
-
-      return {
-        key: `${itemId}-${servingSize}-${index}`,
-        item: {
-          _id: itemId,
-          name: source?.name || 'Menu Item',
-          description: source?.description || '',
-          fullPrice: Number(source?.fullPrice ?? source?.price ?? 0) || 0,
-          halfPrice:
-            source?.halfPrice === undefined || source?.halfPrice === null
-              ? undefined
-              : Number(source.halfPrice) || 0,
-          imageUrl: source?.imageUrl || source?.image || '',
-        },
-        qty,
-        servingSize,
-      }
-    })
-    .filter(Boolean)
-}
-
-function getUnitPrice(cartItem) {
-  if (cartItem.servingSize === 'half' && cartItem.item.halfPrice !== undefined) {
-    return cartItem.item.halfPrice
-  }
-  return cartItem.item.fullPrice || 0
 }
 
 function toPayloadItems(cartItems) {
@@ -58,89 +19,26 @@ function toPayloadItems(cartItems) {
 
 export default function Checkout() {
   const navigate = useNavigate()
-  const location = useLocation()
 
   const [paymentMethod, setPaymentMethod] = useState('mpesa')
-  const [cartItems, setCartItems] = useState([])
-  const [user, setUser] = useState(null)
-  const [loadingUser, setLoadingUser] = useState(true)
   const [isProcessing, setIsProcessing] = useState(false)
   const [requestError, setRequestError] = useState('')
   const [successMessage, setSuccessMessage] = useState('')
 
-  useEffect(() => {
-    let source = location.state?.cart
+  const [user, setUser] = useState(null) // @TODO: Replace with useAuth()
+  const [loadingUser, setLoadingUser] = useState(true)
 
-    if (!Array.isArray(source) || source.length === 0) {
-      try {
-        source = JSON.parse(localStorage.getItem('checkout_cart') || '[]')
-      } catch {
-        source = []
-      }
-    } else {
-      try {
-        localStorage.setItem('checkout_cart', JSON.stringify(source))
-      } catch {
-        // Ignore local storage write failures.
-      }
-    }
-
-    setCartItems(normalizeCart(source))
-  }, [location.state])
-
-  useEffect(() => {
-    let active = true
-
-    const fetchCurrentUser = async () => {
-      try {
-        const { data } = await axios.get('/auth')
-        if (!active) return
-        setUser(data?._id ? data : null)
-      } catch {
-        if (!active) return
-        setUser(null)
-      } finally {
-        if (active) setLoadingUser(false)
-      }
-    }
-
-    fetchCurrentUser()
-
-    return () => {
-      active = false
-    }
-  }, [])
-
-  const updateQty = (itemId, servingSize, delta) => {
-    setCartItems((prev) => {
-      const next = prev
-        .map((entry) => {
-          if (entry.item._id !== itemId || entry.servingSize !== servingSize) return entry
-          return {
-            ...entry,
-            qty: Math.max(0, entry.qty + delta),
-          }
-        })
-        .filter((entry) => entry.qty > 0)
-
-      try {
-        localStorage.setItem('checkout_cart', JSON.stringify(next))
-      } catch {
-        // Ignore local storage write failures.
-      }
-
-      return next
-    })
-  }
-
-  const subtotal = useMemo(
-    () => cartItems.reduce((sum, item) => sum + getUnitPrice(item) * item.qty, 0),
-    [cartItems],
-  )
+  const { 
+    cart, 
+    cartTotals,
+    updateCartItemQty,
+    clearCart,
+    getCartItemUnitPrice
+  } = useCart()
 
   // Keep frontend totals aligned with backend createOrder logic (sum of item prices).
-  const total = subtotal
-  const isCheckoutEmpty = cartItems.length === 0
+  const total = cartTotals.total
+  const isCheckoutEmpty = cart.length === 0
   const canConfirm = !isCheckoutEmpty && !isProcessing && !!user?._id
 
   const statusMessage = successMessage || requestError || (!loadingUser && !user?._id
@@ -171,29 +69,49 @@ export default function Checkout() {
     try {
       const payload = {
         userId: user._id,
-        items: toPayloadItems(cartItems),
+        items: toPayloadItems(cart),
         paymentMethod,
       }
 
       const { data } = await axios.post('/orders/create', payload)
       if (data?.error) throw new Error(data.error)
 
-      setCartItems([])
+      clearCart()
       setSuccessMessage(
         `Order placed successfully. Total ${formatCurrency(data?.totalAmt)}.`,
       )
-
-      try {
-        localStorage.removeItem('checkout_cart')
-      } catch {
-        // Ignore local storage write failures.
-      }
     } catch (error) {
       setRequestError(error?.message || 'Failed to place order. Please try again.')
     } finally {
       setIsProcessing(false)
     }
   }
+
+
+  // @TODO: Replace with useAuth()
+  useEffect(() => {
+    let active = true
+
+    const fetchCurrentUser = async () => {
+      try {
+        const { data } = await axios.get('/auth')
+        if (!active) return
+        setUser(data?._id ? data : null)
+      } catch {
+        if (!active) return
+        setUser(null)
+      } finally {
+        if (active) setLoadingUser(false)
+      }
+    }
+
+    fetchCurrentUser()
+
+    return () => {
+      active = false
+    }
+  }, [])
+
 
   return (
     <div className="min-h-screen bg-background text-on-background font-body-lg antialiased pb-24 md:pb-0 flex flex-col">
@@ -227,9 +145,9 @@ export default function Checkout() {
             {isCheckoutEmpty ? (
               <div className="p-6 text-center text-on-surface-variant">Your cart is empty.</div>
             ) : (
-              cartItems.map((item) => (
+              cart.map((item) => (
                 <div
-                  key={item.key}
+                  key={item.item._id}
                   className="p-4 flex items-start gap-4 border-b border-border-subtle last:border-b-0"
                 >
                   <div className="w-16 h-16 rounded-lg bg-surface-container overflow-hidden shrink-0">
@@ -257,14 +175,14 @@ export default function Checkout() {
                         )}
                       </div>
                       <span className="text-price-display font-price-display">
-                        {formatCurrency(getUnitPrice(item) * item.qty)}
+                        {formatCurrency(getCartItemUnitPrice(item) * item.qty)}
                       </span>
                     </div>
 
                     <div className="flex items-center gap-3 mt-2">
                       <button
                         aria-label="Decrease quantity"
-                        onClick={() => updateQty(item.item._id, item.servingSize, -1)}
+                        onClick={() => updateCartItemQty(item.item._id, -1, item.servingSize)}
                         className="w-8 h-8 rounded-full border border-border-subtle flex items-center justify-center text-primary hover:bg-surface-container-low transition-colors bg-transparent cursor-pointer"
                       >
                         <span className="material-symbols-outlined text-[18px]">remove</span>
@@ -272,7 +190,7 @@ export default function Checkout() {
                       <span className="text-body-md font-body-md font-bold">{item.qty}</span>
                       <button
                         aria-label="Increase quantity"
-                        onClick={() => updateQty(item.item._id, item.servingSize, 1)}
+                        onClick={() => updateCartItemQty(item.item._id, 1, item.servingSize)}
                         className="w-8 h-8 rounded-full border border-border-subtle flex items-center justify-center text-primary hover:bg-surface-container-low transition-colors bg-transparent cursor-pointer"
                       >
                         <span className="material-symbols-outlined text-[18px]">add</span>
