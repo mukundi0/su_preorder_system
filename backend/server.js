@@ -9,6 +9,10 @@ import cors from "cors"
 
 import {connectDB} from './config/db.js'
 import authRoutes from './routes/authRoutes.js'
+import menuitemRoutes from './routes/menuitemRoutes.js'
+import categoryRoutes from './routes/categoryRoutes.js'
+import statsRoutes from './routes/statsRoutes.js'
+import orderRoutes from './routes/orderRoutes.js'
 
 
 dotenv.config()
@@ -24,13 +28,26 @@ app.use(cors({
 // Middleware
 app.use(express.json()) // parse JSON bodies (req.body)
 app.use(cookieParser()) // for cookies
-app.use(express.urlencoded({ extended: false })) // Handing HTML forms
+app.use(express.urlencoded({ extended: true })) // Handing HTML forms
 
 app.get('/', (req, res) => {
     res.send("Welcome to the SU preorder System")
 })
 
+// Auth
 app.use('/api/auth', authRoutes);
+
+// MenuItem
+app.use('/api/menuitems', menuitemRoutes)
+
+// Category
+app.use('/api/categories', categoryRoutes)
+
+// Stats
+app.use('/api/stats', statsRoutes)
+
+// Orders
+app.use('/api/orders', orderRoutes)
 
 
 const PORT = process.env.PORT || 8000
