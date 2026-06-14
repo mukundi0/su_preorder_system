@@ -77,9 +77,7 @@ export default function Checkout() {
       if (data?.error) throw new Error(data.error)
 
       clearCart()
-      setSuccessMessage(
-        `Order placed successfully. Total ${formatCurrency(data?.totalAmt)}.`,
-      )
+      navigate(`/orders/${data._id}/track`)
     } catch (error) {
       setRequestError(error?.message || 'Failed to place order. Please try again.')
     } finally {

@@ -32,10 +32,15 @@ const OrderSchema = new mongoose.Schema({
     },
     orderStatus: {
         type: String,
-        enum: ['pending', 'preparing', 'ready for pickup', 'completed', 'cancelled'],
+        enum: ['pending', 'received', 'preparing', 'ready for pickup', 'ready', 'completed', 'collected', 'cancelled'],
         default: 'pending'
     },
     items: [OrderItemSchema],
+    qrCode:        { type: String },
+    qrPin:         { type: String },
+    orderNumber:   { type: String },
+    pickupCounter: { type: String, default: 'Counter 1' },
+    collectedAt:   { type: Date },
 }, { timestamps: true })
 
 const Order = mongoose.model('Order', OrderSchema)

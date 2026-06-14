@@ -1,6 +1,8 @@
 import MenuItem from "../models/MenuItem.js"
 import Order from "../models/Order.js"
 import User from "../models/User.js"
+import generateQRCode from "../utils/generateQR.js"
+import { v4 as uuidv4 } from "uuid"
 
 export async function getAllOrders(req, res) {
     try {
@@ -89,6 +91,25 @@ export async function createOrder(req, res) {
             totalAmt,
             items
         })
+
+        // Generate QR code
+        const shortId     = uuidv4().replace(/-/g, '').slice(0, 4).toUpperCase()
+        const orderNumber = `STR-${shortId}`
+
+        const qrPayload = JSON.stringify({
+            orderId:     order._id.toString(),
+            orderNumber,
+            userId:      order.user.toString(),
+            timestamp:   new Date().toISOString()
+        })
+
+        const qrDataUrl = await generateQRCode(qrPayload)
+
+        order.qrCode      = qrDataUrl
+        order.qrPin       = shortId
+        order.orderNumber = orderNumber
+        order.orderStatus = 'received'
+        await order.save()
 
         const populatedOrder = await Order.findById(order._id)
             .populate([
@@ -201,5 +222,31 @@ export async function deleteOrder(req, res) {
     } catch (error) {
         console.error("Error in deleteOrder controller:", error)
         res.status(500).json({ error: "Server error" })
+    }
+}
+
+// Kitchen staff: verify QR scan and mark order as collected
+export async function verifyQR(req, res) {
+    try {
+        const { orderId, orderNumber } = req.body
+        const order = await Order.findById(orderId)
+
+        if (!order)
+            return res.status(404).json({ message: 'Order not found' })
+
+        if (order.orderNumber !== orderNumber)
+            return res.status(400).json({ message: 'QR mismatch' })
+
+        if (order.orderStatus === 'collected')
+            return res.status(400).json({ message: 'Already collected' })
+
+        order.orderStatus = 'collected'
+        order.collectedAt = new Date()
+        await order.save()
+
+        res.json({ success: true, message: 'Order collected', order })
+    } catch (error) {
+        console.error("Error in verifyQR controller:", error)
+        res.status(500).json({ message: 'Server error', error: error.message })
     }
 }

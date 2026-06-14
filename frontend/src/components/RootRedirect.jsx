@@ -8,7 +8,7 @@ export default function RootRedirect() {
 
   if (!user) return <Navigate to="/login" replace />
 
-  if (user.role === "student") {
+  if (user.role === "student" || user.role === "student_staff") {
     return <Navigate to="/student" replace />
   }
 
