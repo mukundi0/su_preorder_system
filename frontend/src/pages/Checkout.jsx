@@ -1,7 +1,8 @@
 import axios from 'axios'
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useCart } from '../context/CartContext'
+import { useAuth } from '../context/AuthContext'
 
 const WALLET_BALANCE = 1200
 
@@ -25,8 +26,7 @@ export default function Checkout() {
   const [requestError, setRequestError] = useState('')
   const [successMessage, setSuccessMessage] = useState('')
 
-  const [user, setUser] = useState(null) // @TODO: Replace with useAuth()
-  const [loadingUser, setLoadingUser] = useState(true)
+  const { user, loading } = useAuth()
 
   const { 
     cart, 
@@ -41,7 +41,7 @@ export default function Checkout() {
   const isCheckoutEmpty = cart.length === 0
   const canConfirm = !isCheckoutEmpty && !isProcessing && !!user?._id
 
-  const statusMessage = successMessage || requestError || (!loadingUser && !user?._id
+  const statusMessage = successMessage || requestError || (!loading && !user?._id
     ? 'Sign in is required to place an order.'
     : '')
 
@@ -86,31 +86,6 @@ export default function Checkout() {
       setIsProcessing(false)
     }
   }
-
-  // @TODO: Replace with useAuth()
-  useEffect(() => {
-    let active = true
-
-    const fetchCurrentUser = async () => {
-      try {
-        const { data } = await axios.get('/auth')
-        if (!active) return
-        setUser(data?._id ? data : null)
-      } catch {
-        if (!active) return
-        setUser(null)
-      } finally {
-        if (active) setLoadingUser(false)
-      }
-    }
-
-    fetchCurrentUser()
-
-    return () => {
-      active = false
-    }
-  }, [])
-
 
   return (
     <div className="min-h-screen bg-background text-on-background font-body-lg antialiased pb-24 md:pb-0 flex flex-col">

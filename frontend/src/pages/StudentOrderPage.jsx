@@ -5,8 +5,11 @@ import { useNavigate } from 'react-router-dom'
 import SU_LOGO from '../assets/sulogo.png'
 import HERO_IMAGE from '../assets/heroImage.png'
 import { useCart } from "../context/CartContext"
+import { useAuth } from "../context/AuthContext"
 
 export default function StudentOrderPage() {
+  const { user } = useAuth()
+
   const navigate = useNavigate()
   const [menuItems, setMenuItems] = useState([])
   const [searchInput, setSearchInput] = useState('')
@@ -211,7 +214,7 @@ export default function StudentOrderPage() {
             <img className="absolute inset-0 w-full h-full object-cover" src={HERO_IMAGE} alt="Dining banner" />
             <div className="absolute inset-0 bg-gradient-to-r from-primary/80 to-transparent" />
             <div className="relative z-10 text-white">
-              <h1 className="text-3xl font-bold mb-2">{greeting}, Guest!</h1>
+              <h1 className="text-3xl font-bold mb-2">{greeting}, { user ? user?.name : "Guest" }!</h1>
               <p className="text-white/85 text-lg">Ready to refuel? The kitchen is open until 8:00 PM.</p>
             </div>
           </section>
