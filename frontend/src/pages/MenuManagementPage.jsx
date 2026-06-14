@@ -1,9 +1,8 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect } from 'react'
 import Sidebar from '../components/Sidebar'
 import AddMenuItemModal from '../components/AddMenuItemModal'
 
-const API_BASE = '/api'
-const CATEGORIES = ['All Categories', 'Main Meals', 'Snacks', 'Drinks', 'Pastries', 'Desserts']
+import axios from "axios"
 
 function formatPrice(item) {
   if (item.halfPrice != null && item.fullPrice != null) {
@@ -15,102 +14,124 @@ function formatPrice(item) {
   return 'N/A'
 }
 
+function toPascalCase(str) {
+  return str
+    ?.split(' ')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(' ')
+}
+
 export default function MenuManagementPage() {
   const [items, setItems] = useState([])
+  const [categories, setCategories] = useState([])
+  
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [search, setSearch] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
-  const [categoryFilter, setCategoryFilter] = useState('All Categories')
+  const [categoryFilter, setCategoryFilter] = useState('all')
   const [modalOpen, setModalOpen] = useState(false)
   const [editItem, setEditItem] = useState(null)
+
+  // Fetch all menu items
+  const fetchItems = async () => {
+    try {
+      setLoading(true)
+      setError(null)
+
+      const params = new URLSearchParams()
+      if (debouncedSearch) params.append('search', debouncedSearch)
+      if (categoryFilter && categoryFilter !== 'all') params.append('category', categoryFilter)
+
+      const { data } = await axios.get(`/menuitems?${params}`)
+
+      setItems(data)
+    } catch (err) {
+      setError(err.message || 'Network error while loading menu items')
+      console.error(err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    fetchItems()
+  }, [debouncedSearch, categoryFilter])
+
+
+  // Fetch all categories
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const { data } = await axios.get('/categories')
+
+        setCategories([
+          {
+            _id: "all",
+            name: "All Categories"
+          },
+          ...data.categories
+        ])
+      } catch (error) {
+        setError(error.message)
+        console.error(error)
+      }
+    }
+
+    fetchCategories()
+  }, [])
 
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearch(search), 400)
     return () => clearTimeout(timer)
   }, [search])
 
-  const fetchItems = useCallback(async () => {
-    setLoading(true)
-    setError(null)
-    try {
-      const params = new URLSearchParams()
-      if (debouncedSearch) params.append('search', debouncedSearch)
-      if (categoryFilter && categoryFilter !== 'All Categories') params.append('category', categoryFilter)
-      const res = await fetch(`${API_BASE}/menuitems?${params}`)
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({ error: `Failed to fetch items (HTTP ${res.status})` }))
-        throw new Error(err.error || err.message || `HTTP ${res.status}`)
-      }
-      const data = await res.json()
-      setItems(data)
-    } catch (err) {
-      setError(err.message || 'Network error while loading menu items')
-    } finally {
-      setLoading(false)
-    }
-  }, [debouncedSearch, categoryFilter])
-
-  useEffect(() => {
-    fetchItems()
-  }, [fetchItems])
 
   const handleToggle = async (item) => {
     const nextAvailability = !item.isAvailable
 
     try {
-      const res = await fetch(`${API_BASE}/menuitems/toggle/${item._id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ isAvailable: nextAvailability }),
+      const { data } = await axios.patch(`/menuitems/toggle/${item._id}`, {
+        isAvailable: nextAvailability
       })
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({ error: `Toggle failed (HTTP ${res.status})` }))
-        throw new Error(err.error || err.message || `HTTP ${res.status}`)
-      }
-      const updated = await res.json()
-      setItems((prev) => prev.map((row) => (row._id === item._id ? updated : row)))
+  
+      setItems((prev) => prev.map((row) => (row._id === item._id ? data : row)))
+
     } catch (err) {
-      alert(err.message)
+      console.error(err)
     }
   }
 
   const handleDelete = async (item) => {
     if (!window.confirm(`Delete "${item.name}"? This cannot be undone.`)) return
+    
     try {
-      const res = await fetch(`${API_BASE}/menuitems/delete/${item._id}`, { method: 'DELETE' })
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({ error: `Delete failed (HTTP ${res.status})` }))
-        throw new Error(err.error || err.message || `HTTP ${res.status}`)
-      }
+      await axios.delete(`/menuitems/delete/${item._id}`)
+
       fetchItems()
     } catch (err) {
-      alert(err.message)
+      console.error(err)
     }
   }
 
   const handleSubmit = async (formData, editItemData) => {
     const url = editItemData
-      ? `${API_BASE}/menuitems/update/${editItemData._id}`
-      : `${API_BASE}/menuitems/create`
-    const method = editItemData ? 'PUT' : 'POST'
-
-    const res = await fetch(url, { method, body: formData })
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({ error: 'Request failed' }))
-      throw new Error(err.error || err.message || `HTTP ${res.status}`)
-    }
-
-    const updatedItem = await res.json()
+      ? `/menuitems/update/${editItemData._id}`
+      : `/menuitems/create`
+    
+    const { data } = editItemData 
+      ? await axios.put(url, formData)
+      : await axios.post(url, formData)
 
     if (editItemData) {
-      setItems((prev) => prev.map((item) => (item._id === updatedItem._id ? updatedItem : item)))
+      setItems((prev) => prev.map((item) => (item._id === data._id ? data : item)))
     } else {
-      setItems((prev) => [updatedItem, ...prev])
+      setItems((prev) => [data, ...prev])
     }
 
     setModalOpen(false)
     setEditItem(null)
+    
     await fetchItems()
   }
 
@@ -189,17 +210,17 @@ export default function MenuManagementPage() {
               </div>
               <div className="overflow-x-auto no-scrollbar pb-1">
                 <div className="flex gap-2 min-w-max">
-                  {CATEGORIES.map((cat) => (
+                  {categories?.map((cat) => (
                     <button
-                      key={cat}
-                      onClick={() => setCategoryFilter(cat)}
+                      key={cat._id}
+                      onClick={() => setCategoryFilter(cat._id)}
                       className={`px-5 py-2 rounded-full text-label-md uppercase font-bold tracking-wider whitespace-nowrap transition-colors cursor-pointer ${
-                        categoryFilter === cat
+                        categoryFilter === cat.name
                           ? 'bg-primary-container text-on-primary-container'
                           : 'bg-surface-container text-on-surface-variant hover:bg-surface-container-high'
                       }`}
                     >
-                      {cat === 'All Categories' ? 'All Items' : cat}
+                      {cat.name === 'All Categories' ? 'All Items' : toPascalCase(cat.name)}
                     </button>
                   ))}
                 </div>
@@ -212,8 +233,8 @@ export default function MenuManagementPage() {
                 onChange={(e) => setCategoryFilter(e.target.value)}
                 className="px-4 py-3 rounded-lg border border-outline-variant bg-surface text-body-md focus:border-primary outline-none min-w-[180px]"
               >
-                {CATEGORIES.map((cat) => (
-                  <option key={cat} value={cat}>{cat}</option>
+                {categories?.map((cat) => (
+                  <option key={cat._id} value={cat._id}>{toPascalCase(cat.name)}</option>
                 ))}
               </select>
             </div>
@@ -286,7 +307,7 @@ export default function MenuManagementPage() {
                                 <p className="text-label-md text-outline mt-1 line-clamp-1">{item.description}</p>
                               )}
                             </td>
-                            <td className="p-4 text-body-md text-on-surface-variant">{item.category}</td>
+                            <td className="p-4 text-body-md text-on-surface-variant">{toPascalCase(item.category.name)}</td>
                             <td className="p-4 text-body-md font-semibold text-primary">{formatPrice(item)}</td>
                             <td className="p-4 text-center">
                               <div className="flex flex-col items-center">
@@ -355,7 +376,7 @@ export default function MenuManagementPage() {
                       </div>
                       <div className="flex-1 min-w-0">
                         <h3 className="text-body-lg font-bold text-on-surface truncate">{item.name}</h3>
-                        <p className="text-[11px] uppercase tracking-wider text-on-surface-variant mt-0.5">{item.category}</p>
+                        <p className="text-[11px] uppercase tracking-wider text-on-surface-variant mt-0.5">{item.category.name}</p>
                         <p className="text-body-md font-semibold text-primary mt-1">{formatPrice(item)}</p>
                       </div>
                       <div className="flex flex-col items-end gap-2 shrink-0">
@@ -423,6 +444,7 @@ export default function MenuManagementPage() {
         onClose={handleCloseModal}
         onSubmit={handleSubmit}
         editItem={editItem}
+        categories={categories}
       />
     </div>
   )

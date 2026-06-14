@@ -12,13 +12,9 @@ const MenuItemSchema = mongoose.Schema({
                 .join(" ")
     },
     category: {
-        type: String,
-        required: [true, "Category is required"],
-        enum: ["Main Meals", "Snacks", "Drinks", "Pastries", "Desserts"]
-    },
-    price: {
-        type: Number,
-        min: [0, "Price cannot be negative"]
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Category',
+        required: true
     },
     halfPrice: {
         type: Number,
@@ -45,9 +41,9 @@ const MenuItemSchema = mongoose.Schema({
 
 
 MenuItemSchema.pre('validate', function () {
-  const { price, halfPrice, fullPrice } = this
+  const {halfPrice, fullPrice } = this
 
-  if (price == null && halfPrice == null && fullPrice == null) {
+  if (halfPrice == null && fullPrice == null) {
     this.invalidate('price', 'At least one price is required')
   }
 })

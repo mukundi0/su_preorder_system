@@ -21,11 +21,11 @@ export async function getMenuItems(req, res) {
             filter.isAvailable = available === "true"
         }
 
-        if (category && category !== "All Categories") {
+        if (category && category !== "all") {
             filter.category = category
         }
 
-        const menuItems = await MenuItem.find(filter).sort({ createdAt: -1 })
+        const menuItems = await MenuItem.find(filter).sort({ createdAt: -1 }).populate('category')
 
         res.json(menuItems)
     } catch (error) {
@@ -39,12 +39,6 @@ export async function createMenuItem(req, res) {
         const { name, category, description, isAvailable } = req.body
         const halfPrice = parseOptionalNumber(req.body.halfPrice)
         const fullPrice = parseOptionalNumber(req.body.fullPrice)
-        const fallbackPrice = parseOptionalNumber(req.body.price)
-        const price = fullPrice ?? halfPrice ?? fallbackPrice
-
-        if (price === undefined) {
-            return res.status(400).json({ error: "At least one price is required" })
-        }
 
         if (!req.file) {
             return res.status(400).json({ error: "Image is required" })
@@ -64,7 +58,6 @@ export async function createMenuItem(req, res) {
         const newMenuItem = await MenuItem.create({
             name,
             category,
-            price,
             halfPrice,
             fullPrice,
             description: description || "",
@@ -85,56 +78,7 @@ export async function createMenuItem(req, res) {
 
 export async function updateMenuItem(req, res) {
     try {
-        const existingMenuItem = await MenuItem.findById(req.params.id)
-
-        if (!existingMenuItem)
-            return res.status(404).json({ message: "Menu Item not found" })
-
-        const setData = {}
-        const unsetData = {}
-
-        if (req.body.name !== undefined) setData.name = req.body.name
-        if (req.body.category !== undefined) setData.category = req.body.category
-        if (req.body.description !== undefined) setData.description = req.body.description
-
-        if (req.body.isAvailable !== undefined) {
-            setData.isAvailable = req.body.isAvailable === "true" || req.body.isAvailable === true
-        }
-
-        const hasHalfPriceField = Object.prototype.hasOwnProperty.call(req.body, 'halfPrice')
-        const hasFullPriceField = Object.prototype.hasOwnProperty.call(req.body, 'fullPrice')
-        const hasPriceField = Object.prototype.hasOwnProperty.call(req.body, 'price')
-
-        const halfPrice = parseOptionalNumber(req.body.halfPrice)
-        const fullPrice = parseOptionalNumber(req.body.fullPrice)
-        const fallbackPrice = parseOptionalNumber(req.body.price)
-
-        if (hasHalfPriceField) {
-            if (halfPrice === undefined) unsetData.halfPrice = 1
-            else setData.halfPrice = halfPrice
-        }
-
-        if (hasFullPriceField) {
-            if (fullPrice === undefined) unsetData.fullPrice = 1
-            else setData.fullPrice = fullPrice
-        }
-
-        const nextHalfPrice = hasHalfPriceField ? halfPrice : existingMenuItem.halfPrice
-        const nextFullPrice = hasFullPriceField ? fullPrice : existingMenuItem.fullPrice
-
-        let nextPrice = hasPriceField ? fallbackPrice : existingMenuItem.price
-        if (!hasPriceField && (hasHalfPriceField || hasFullPriceField)) {
-            nextPrice = nextFullPrice ?? nextHalfPrice ?? existingMenuItem.price
-        }
-        if (nextPrice === undefined || nextPrice === null) {
-            nextPrice = nextFullPrice ?? nextHalfPrice
-        }
-
-        if (nextPrice === undefined || nextPrice === null) {
-            return res.status(400).json({ error: "At least one price is required" })
-        }
-
-        setData.price = nextPrice
+        const updateData = { ...req.body }
 
         if (req.file) {
             const result = await new Promise((resolve, reject) => {
@@ -147,19 +91,21 @@ export async function updateMenuItem(req, res) {
                 )
                 stream.end(req.file.buffer)
             })
-            setData.imageUrl = result.secure_url
-        }
-
-        const updatePayload = { $set: setData }
-        if (Object.keys(unsetData).length > 0) {
-            updatePayload.$unset = unsetData
+            updateData.imageUrl = result.secure_url
         }
 
         const updatedMenuItem = await MenuItem.findByIdAndUpdate(
             req.params.id,
-            updatePayload,
-            { returnDocument: "after", runValidators: true }
-        )
+            updateData,
+            { 
+                returnDocument: "after", 
+                runValidators: true 
+            }
+        ).populate('category')
+
+        if (!updatedMenuItem) {
+            return res.status(404).json({ error: "Menu item not found" })
+        }
 
         res.json(updatedMenuItem)
     } catch (error) {
@@ -187,7 +133,7 @@ export async function toggleAvailability(req, res) {
             req.params.id,
             { $set: { isAvailable: nextAvailability } },
             { returnDocument: "after" }
-        )
+        ).populate('category')
 
         res.json(updatedItem)
     } catch (error) {

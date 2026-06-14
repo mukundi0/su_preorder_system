@@ -13,10 +13,6 @@ const CategorySchema = mongoose.Schema({
     colorTheme: {
         type: String,
         default: "bg-primary-fixed text-primary"
-    },
-    updatedBy: {
-        type: String,
-        default: "System"
     }
 }, { timestamps: true })
 

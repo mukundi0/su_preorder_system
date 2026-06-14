@@ -1,7 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
 
-const CATEGORIES = ['Main Meals', 'Snacks', 'Drinks', 'Pastries', 'Desserts']
-
 const emptyForm = {
   name: '',
   category: '',
@@ -11,7 +9,7 @@ const emptyForm = {
   isAvailable: true,
 }
 
-export default function AddMenuItemModal({ open, onClose, onSubmit, editItem }) {
+export default function AddMenuItemModal({ open, onClose, onSubmit, editItem, categories }) {
   const [form, setForm] = useState(emptyForm)
   const [imageFile, setImageFile] = useState(null)
   const [imagePreview, setImagePreview] = useState(null)
@@ -20,16 +18,18 @@ export default function AddMenuItemModal({ open, onClose, onSubmit, editItem }) 
   const [submitError, setSubmitError] = useState('')
   const fileInputRef = useRef(null)
 
+
   useEffect(() => {
     if (editItem) {
       setForm({
         name: editItem.name || '',
-        category: editItem.category || '',
+        category: editItem.category?._id || '',
         halfPrice: editItem.halfPrice?.toString() || '',
         fullPrice: editItem.fullPrice?.toString() || editItem.price?.toString() || '',
         description: editItem.description || '',
         isAvailable: editItem.isAvailable !== false,
       })
+
       setImagePreview(editItem.imageUrl || null)
       setImageFile(null)
       setSubmitError('')
@@ -39,7 +39,7 @@ export default function AddMenuItemModal({ open, onClose, onSubmit, editItem }) 
       setImageFile(null)
       setSubmitError('')
     }
-  }, [editItem, open])
+  }, [open, editItem])
 
   if (!open) return null
 
@@ -87,12 +87,6 @@ export default function AddMenuItemModal({ open, onClose, onSubmit, editItem }) 
 
     if (!form.name.trim()) return
     if (!form.category) return
-    const hasHalf = form.halfPrice !== ''
-    const hasFull = form.fullPrice !== ''
-
-    if (!hasHalf && !hasFull) return
-    if (hasHalf && (isNaN(form.halfPrice) || Number(form.halfPrice) < 0)) return
-    if (hasFull && (isNaN(form.fullPrice) || Number(form.fullPrice) < 0)) return
     if (!imagePreview && !editItem) return
 
     setSubmitting(true)
@@ -102,7 +96,6 @@ export default function AddMenuItemModal({ open, onClose, onSubmit, editItem }) 
     formData.append('category', form.category)
     formData.append('halfPrice', form.halfPrice)
     formData.append('fullPrice', form.fullPrice)
-    formData.append('price', form.fullPrice || form.halfPrice)
     formData.append('description', form.description.trim())
     formData.append('isAvailable', form.isAvailable)
 
@@ -116,10 +109,18 @@ export default function AddMenuItemModal({ open, onClose, onSubmit, editItem }) 
     } catch (error) {
       setSubmitError(error.message || 'Failed to save menu item.')
       setSubmitting(false)
+      console.error(error)
     }
   }
 
   const isEditing = !!editItem
+
+  function toPascalCase(str) {
+    return str
+      ?.split(' ')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+      .join(' ')
+  }
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-on-surface/40 backdrop-blur-sm">
@@ -204,8 +205,8 @@ export default function AddMenuItemModal({ open, onClose, onSubmit, editItem }) 
                 className="w-full h-12 px-4 rounded-lg border border-outline-variant bg-surface focus:border-primary focus:ring-1 focus:ring-primary outline-none text-body-md transition-colors"
               >
                 <option value="" disabled>Select Category</option>
-                {CATEGORIES.map((cat) => (
-                  <option key={cat} value={cat}>{cat}</option>
+                {categories.filter(category => category._id != "all").map((cat) => (
+                  <option key={cat._id} value={cat._id}>{toPascalCase(cat.name)}</option>
                 ))}
               </select>
             </div>
@@ -232,9 +233,8 @@ export default function AddMenuItemModal({ open, onClose, onSubmit, editItem }) 
                 min="0"
                 step="0.01"
                 className="w-full h-12 px-4 rounded-lg border border-outline-variant bg-surface focus:border-primary focus:ring-1 focus:ring-primary outline-none text-body-md transition-colors"
-                placeholder="Optional"
+                required
               />
-              <p className="text-[11px] text-on-surface-variant">Provide at least one price (half or full).</p>
             </div>
 
             <div className="space-y-2">

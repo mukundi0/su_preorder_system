@@ -17,7 +17,6 @@ import MenuManagementPage from './pages/MenuManagementPage'
 import SettingsPage from './pages/SettingsPage'
 import StudentOrderPage from './pages/StudentOrderPage'
 import Checkout from './pages/Checkout'
-import Unauthorized from "./pages/Unauthorized"
 import ProtectedRoute from "./components/ProtectedRoute"
 import RootRedirect from "./components/RootRedirect"
 
@@ -66,8 +65,6 @@ function App() {
               <Route path="categories" element={<CategoryManagement />} />
               <Route path="settings" element={<SettingsPage />} />
             </Route>
-
-            <Route path="/unauthorized" element={<Unauthorized />} />
 
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>

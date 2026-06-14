@@ -19,7 +19,6 @@ const emptyForm = {
   description: '',
   iconName: 'category',
   colorTheme: 'bg-primary-fixed text-primary',
-  updatedBy: '',
 }
 
 export default function CategoryModal({ open, onClose, onSubmit, editCategory }) {
@@ -32,7 +31,6 @@ export default function CategoryModal({ open, onClose, onSubmit, editCategory })
         description: editCategory.description || '',
         iconName: editCategory.iconName || 'category',
         colorTheme: editCategory.colorTheme || 'bg-primary-fixed text-primary',
-        updatedBy: editCategory.updatedBy || '',
       })
     } else {
       setForm(emptyForm)
@@ -146,20 +144,7 @@ export default function CategoryModal({ open, onClose, onSubmit, editCategory })
               })}
             </div>
           </div>
-
-          <div>
-            <label className="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">
-              Updated By
-            </label>
-            <input
-              type="text"
-              value={form.updatedBy}
-              onChange={handleChange('updatedBy')}
-              className="w-full bg-surface-container-low border border-outline-variant rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-primary-container transition-all"
-              placeholder="e.g. Admin"
-            />
-          </div>
-
+          
           <div className="flex justify-end gap-3 pt-2">
             <button
               type="button"

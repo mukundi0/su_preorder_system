@@ -17,53 +17,37 @@ export async function getAllCategories(req, res) {
             }
             : { $match: {} }
 
+
         const pipeline = [
-            matchStage,
-            {
-                $lookup: {
+            matchStage, // Search
+            {  
+                $lookup: { // Join menu items
                     from: "menuitems",
-                    let: {
-                        categoryId: "$_id",
-                        categoryName: { $toLower: "$name" }
-                    },
-                    pipeline: [
-                        {
-                            $match: {
-                                $expr: {
-                                    $or: [
-                                        { $eq: ["$category", "$$categoryId"] },
-                                        {
-                                            $and: [
-                                                { $eq: [{ $type: "$category" }, "string"] },
-                                                { $eq: [{ $toLower: "$category" }, "$$categoryName"] }
-                                            ]
-                                        }
-                                    ]
-                                }
-                            }
-                        }
-                    ],
+                    localField: "_id",
+                    foreignField: "category",
                     as: "items"
                 }
             },
             {
-                $addFields: {
+                $addFields: { // Count items
                     itemCount: { $size: "$items" }
                 }
             },
             {
-                $project: {
+                $project: { // Remove items array after obtaining "itemCount"
                     items: 0
                 }
             },
-            { $sort: { updatedAt: -1 } }
+            { $sort: { updatedAt: -1 } } // Sort by most recently updated (descending order)
         ]
 
+        // Count categories
         const totalPipeline = [
             matchStage,
             { $count: "total" }
         ]
 
+        // Run both queries (pipeline & totalPipeline) simultaneously
         const [categories, totalResult] = await Promise.all([
             Category.aggregate([...pipeline, { $skip: skip }, { $limit: limitNum }]),
             Category.aggregate(totalPipeline)
@@ -90,7 +74,7 @@ export async function getAllCategories(req, res) {
 
 export async function createCategory(req, res) {
     try {
-        const { name, description, iconName, colorTheme, updatedBy } = req.body
+        const { name, description, iconName, colorTheme } = req.body
 
         const normalizedName = name.trim().toLowerCase()
 
@@ -106,7 +90,6 @@ export async function createCategory(req, res) {
             description,
             iconName: iconName || "category",
             colorTheme: colorTheme || "bg-primary-fixed text-primary",
-            updatedBy: updatedBy || "System"
         })
 
         res.status(201).json(category)
@@ -126,7 +109,6 @@ export async function updateCategory(req, res) {
         if (description !== undefined) updateData.description = description
         if (iconName !== undefined) updateData.iconName = iconName
         if (colorTheme !== undefined) updateData.colorTheme = colorTheme
-        if (updatedBy !== undefined) updateData.updatedBy = updatedBy
 
         const updatedCategory = await Category.findByIdAndUpdate(
             req.params.id,
