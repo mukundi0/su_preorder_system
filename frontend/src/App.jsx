@@ -1,7 +1,6 @@
 import axios from "axios"
 
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom"
-import Home from "./pages/Home"
 import Login from "./pages/Login"
 import Register from "./pages/Register"
 import VerifyEmail from "./pages/VerifyEmail"
@@ -26,24 +25,22 @@ function App() {
   return (
     <GoogleOAuthProvider clientId={import.meta.env.VITE_GOOGLE_CLIENT_ID}>
       <AuthContextProvider>
-        <Router>
-          <Routes>
-            <Route path="/" element={<StudentOrderPage />} />
+        <Routes>
+          <Route path="/" element={<StudentOrderPage />} />
 
-            <Route path='/login' element={<Login />} />
-            <Route path='/register' element={<Register />} />
-            <Route path='/verify-email' element={<VerifyEmail />} />
-            
-            <Route path="/order" element={<Navigate to="/" replace />} />
-            <Route path="/dashboard" element={<DashboardPage />} />
-            <Route path="/orders" element={<OrdersPage />} />
-            <Route path="/menu-management" element={<MenuManagementPage />} />
-            <Route path="/categories" element={<CategoryManagement />} />
-            <Route path="/settings" element={<SettingsPage />} />
+          <Route path='/login' element={<Login />} />
+          <Route path='/register' element={<Register />} />
+          <Route path='/verify-email' element={<VerifyEmail />} />
+          
+          <Route path="/order" element={<Navigate to="/" replace />} />
+          <Route path="/dashboard" element={<DashboardPage />} />
+          <Route path="/orders" element={<OrdersPage />} />
+          <Route path="/menu-management" element={<MenuManagementPage />} />
+          <Route path="/categories" element={<CategoryManagement />} />
+          <Route path="/settings" element={<SettingsPage />} />
 
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-        </Router>
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
       </AuthContextProvider>
     </GoogleOAuthProvider>
   )

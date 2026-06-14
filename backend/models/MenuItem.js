@@ -43,16 +43,13 @@ const MenuItemSchema = mongoose.Schema({
     }
 }, { timestamps: true })
 
-MenuItemSchema.pre('validate', function (next) {
-    const hasPrice = this.price !== undefined && this.price !== null
-    const hasHalfPrice = this.halfPrice !== undefined && this.halfPrice !== null
-    const hasFullPrice = this.fullPrice !== undefined && this.fullPrice !== null
 
-    if (!hasPrice && !hasHalfPrice && !hasFullPrice) {
-        this.invalidate('price', 'At least one price is required')
-    }
+MenuItemSchema.pre('validate', function () {
+  const { price, halfPrice, fullPrice } = this
 
-    next()
+  if (price == null && halfPrice == null && fullPrice == null) {
+    this.invalidate('price', 'At least one price is required')
+  }
 })
 
 const MenuItem = mongoose.model("MenuItem", MenuItemSchema)
