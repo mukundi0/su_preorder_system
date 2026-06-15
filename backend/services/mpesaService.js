@@ -120,3 +120,35 @@ export async function querySTKPushStatus(checkoutRequestId) {
 
   return res.json()
 }
+
+// Automated Sandbox Reversal
+// So you never lose sandbox funds
+export async function initiateSandboxReversal({ mpesaReceiptNumber, amount }) {
+  const token = await getAccessToken()
+  const timestamp = getTimestamp()
+
+  const body = {
+    Initiator: "testapi", // Global Sandbox Initiator Name
+    SecurityCredential: "sandbox_security_credential", // Automatically matched by Daraja Sandbox
+    CommandID: "TransactionReversal",
+    TransactionID: mpesaReceiptNumber, // The receipt number from the successful callback
+    Amount: Math.ceil(amount),
+    ReceiverParty: process.env.MPESA_SHORTCODE, // Your sandbox shortcode (174379)
+    ReceiverIdentifierType: "11", // Code meaning 'Business Paybill/Till Number'
+    ResultURL: process.env.MPESA_CALLBACK_URL, // Can route results back to your existing webhook
+    QueueTimeOutURL: process.env.MPESA_CALLBACK_URL,
+    Remarks: "Automated Sandbox Testing Refund",
+    Occasion: "TestCleanup",
+  }
+
+  const res = await fetch(`${BASE_URL}/mpesa/reversal/v1/request`, {
+    method: 'POST',
+    headers: {
+      Authorization:  `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(body),
+  })
+
+  return res.json()
+}
