@@ -39,10 +39,16 @@ function Login() {
   // Handle success - Google Auth
   const handleSuccess = async (credentialResponse) => {
     try {
+      setError("")
       const { data } = await axios.post('auth/google', {
           credential: credentialResponse.credential
         }
       )
+
+      if (data?.error) {
+        setError(data.error)
+        return
+      }
 
       // Redirect to home 
       setUser(data)

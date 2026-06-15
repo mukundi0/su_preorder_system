@@ -6,6 +6,7 @@ import SU_LOGO from '../assets/sulogo.png'
 import HERO_IMAGE from '../assets/heroImage.png'
 import { useCart } from "../context/CartContext"
 import { useAuth } from "../context/AuthContext"
+import StudentBottomNav from "../components/StudentBottomNav"
 
 export default function StudentOrderPage() {
   const { user } = useAuth()
@@ -18,6 +19,8 @@ export default function StudentOrderPage() {
   const [selectedCategory, setSelectedCategory] = useState('All items')
 
   const [isMobileCartOpen, setIsMobileCartOpen] = useState(false)
+  const [pendingItem, setPendingItem] = useState(null)
+  const [selectedSize, setSelectedSize] = useState('full')
 
   const {
     cart,
@@ -84,8 +87,21 @@ export default function StudentOrderPage() {
 
   const requestCheckoutPage = () => {
     if (checkoutDisabled) return
-
     navigate('/checkout')
+  }
+
+  const handleAddClick = (item) => {
+    if (item.halfPrice) {
+      setPendingItem(item)
+      setSelectedSize('full')
+    } else {
+      addItemToCart(item)
+    }
+  }
+
+  const handleConfirmSize = () => {
+    addItemToCart({ ...pendingItem, servingSize: selectedSize })
+    setPendingItem(null)
   }
 
 
@@ -177,9 +193,11 @@ export default function StudentOrderPage() {
             </div>
           </div>
 
-          <nav className="hidden md:flex items-center gap-6 h-full">
-            <button className="text-primary border-b-2 border-primary h-full flex items-center px-2 font-semibold bg-transparent cursor-pointer">Menu</button>
-            <button className="text-on-surface-variant h-full flex items-center px-2 transition-colors hover:bg-surface-container-low bg-transparent cursor-pointer rounded">Orders</button>
+          <nav className="hidden md:flex items-center h-full">
+            <button className="text-primary border-b-2 border-primary h-full flex items-center px-4 font-semibold bg-transparent cursor-pointer text-sm">Menu</button>
+            <button className="text-on-surface-variant h-full flex items-center px-4 transition-colors hover:bg-surface-container-low bg-transparent cursor-pointer text-sm">Orders</button>
+            <button onClick={() => navigate('/wallet')} className="text-on-surface-variant h-full flex items-center px-4 transition-colors hover:bg-surface-container-low bg-transparent cursor-pointer text-sm">Wallet</button>
+            <button className="text-on-surface-variant h-full flex items-center px-4 transition-colors hover:bg-surface-container-low bg-transparent cursor-pointer text-sm">Profile</button>
           </nav>
         </div>
 
@@ -279,9 +297,16 @@ export default function StudentOrderPage() {
                       </div>
 
                       <div className="flex justify-between items-end mt-2 md:mt-4">
-                        <span className="font-bold text-base md:text-lg text-primary">{formatCurrency(item.fullPrice)}</span>
+                        <div>
+                          <span className="font-bold text-base md:text-lg text-primary">{formatCurrency(item.fullPrice)}</span>
+                          {item.halfPrice && (
+                            <span className="block text-xs text-on-surface-variant mt-0.5">
+                              Half: {formatCurrency(item.halfPrice)}
+                            </span>
+                          )}
+                        </div>
                         <button
-                          onClick={() => addItemToCart(item)}
+                          onClick={() => handleAddClick(item)}
                           className="w-8 h-8 md:w-10 md:h-10 bg-primary text-on-primary rounded-full md:rounded-lg flex items-center justify-center hover:bg-primary-container transition-colors shadow-sm cursor-pointer"
                         >
                           <span className="material-symbols-outlined">add</span>
@@ -340,23 +365,15 @@ export default function StudentOrderPage() {
         </aside>
       </main>
 
-      {/* --- MOBILE ACCESSIBILITY EXTENSIONS --- */}
-
-      {/* Bottom Sticky Bar: Shows up if there are items in the cart on mobile viewports */}
+      {/* Cart FAB — floats above the bottom nav when cart has items (mobile only) */}
       {cart.length > 0 && (
-        <div className="fixed bottom-0 inset-x-0 bg-surface border-t border-outline-variant p-4 flex items-center justify-between z-50 lg:hidden shadow-[0_-4px_16px_rgba(0,0,0,0.08)]">
-          <div onClick={() => setIsMobileCartOpen(true)} className="cursor-pointer">
-            <div className="flex items-center gap-2 text-primary font-bold">
-              <span className="material-symbols-outlined">shopping_cart</span>
-              <span>{cartCount} Item{cartCount !== 1 && 's'}</span>
-            </div>
-            <p className="text-xs text-on-surface-variant font-semibold">{formatCurrency(cartTotals.total)} total</p>
-          </div>
+        <div className="fixed bottom-[72px] right-4 z-40 md:hidden">
           <button
             onClick={() => setIsMobileCartOpen(true)}
-            className="px-6 py-3 bg-primary text-on-primary rounded-lg font-bold text-sm flex items-center gap-2 shadow-md cursor-pointer"
+            className="bg-secondary-container text-on-secondary-container rounded-full px-5 py-3.5 flex items-center gap-2 shadow-[0_4px_16px_rgba(0,0,0,0.18)] hover:scale-105 active:scale-95 transition-transform cursor-pointer"
           >
-            View Cart
+            <span className="material-symbols-outlined text-[20px]" style={{ fontVariationSettings: "'FILL' 1" }}>shopping_cart</span>
+            <span className="font-bold text-sm">{cartCount} item{cartCount !== 1 && 's'} · {formatCurrency(cartTotals.total)}</span>
             <span className="material-symbols-outlined text-sm">expand_less</span>
           </button>
         </div>
@@ -418,6 +435,97 @@ export default function StudentOrderPage() {
           </div>
         </div>
       )}
+
+      {/* Serving Size Picker Sheet */}
+      {pendingItem && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[110] flex flex-col justify-end lg:justify-center lg:items-center">
+          <div className="flex-grow lg:hidden" onClick={() => setPendingItem(null)} />
+
+          <div className="bg-surface rounded-t-2xl lg:rounded-2xl w-full lg:max-w-sm flex flex-col">
+            {/* drag handle */}
+            <div
+              className="w-12 h-1 bg-outline-variant rounded-full mx-auto mt-3 mb-1 lg:hidden cursor-pointer"
+              onClick={() => setPendingItem(null)}
+            />
+
+            {/* Item header */}
+            <div className="px-6 pt-4 pb-3 border-b border-outline-variant flex items-center justify-between">
+              <div>
+                <h3 className="font-bold text-lg text-primary leading-tight">{pendingItem.name}</h3>
+                <p className="text-xs text-on-surface-variant mt-0.5">Choose your serving size</p>
+              </div>
+              <button
+                onClick={() => setPendingItem(null)}
+                className="w-8 h-8 rounded-full bg-surface-container flex items-center justify-center text-on-surface-variant hover:bg-surface-container-high transition-colors cursor-pointer border-none"
+              >
+                <span className="material-symbols-outlined text-lg">close</span>
+              </button>
+            </div>
+
+            {/* Size options */}
+            <div className="px-6 py-4 flex flex-col gap-3">
+              {/* Half option — only shown if halfPrice exists */}
+              <button
+                onClick={() => setSelectedSize('half')}
+                className={`w-full flex justify-between items-center p-4 rounded-xl border-2 transition-colors cursor-pointer text-left ${
+                  selectedSize === 'half'
+                    ? 'border-primary bg-primary/5'
+                    : 'border-outline-variant bg-surface hover:bg-surface-container-low'
+                }`}
+              >
+                <div>
+                  <div className="font-semibold text-sm text-on-surface">Half Serving</div>
+                  <div className="text-xs text-on-surface-variant mt-0.5">Smaller portion</div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className="font-bold text-primary">{formatCurrency(pendingItem.halfPrice)}</span>
+                  <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ${
+                    selectedSize === 'half' ? 'border-primary' : 'border-outline'
+                  }`}>
+                    {selectedSize === 'half' && <div className="w-2.5 h-2.5 rounded-full bg-primary" />}
+                  </div>
+                </div>
+              </button>
+
+              {/* Full option */}
+              <button
+                onClick={() => setSelectedSize('full')}
+                className={`w-full flex justify-between items-center p-4 rounded-xl border-2 transition-colors cursor-pointer text-left ${
+                  selectedSize === 'full'
+                    ? 'border-primary bg-primary/5'
+                    : 'border-outline-variant bg-surface hover:bg-surface-container-low'
+                }`}
+              >
+                <div>
+                  <div className="font-semibold text-sm text-on-surface">Full Serving</div>
+                  <div className="text-xs text-on-surface-variant mt-0.5">Standard portion</div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className="font-bold text-primary">{formatCurrency(pendingItem.fullPrice)}</span>
+                  <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ${
+                    selectedSize === 'full' ? 'border-primary' : 'border-outline'
+                  }`}>
+                    {selectedSize === 'full' && <div className="w-2.5 h-2.5 rounded-full bg-primary" />}
+                  </div>
+                </div>
+              </button>
+            </div>
+
+            {/* Actions */}
+            <div className="px-6 pb-8 pt-2 flex flex-col gap-2">
+              <button
+                onClick={handleConfirmSize}
+                className="w-full py-3.5 bg-primary text-on-primary rounded-lg font-bold text-base hover:bg-primary-container transition-colors flex items-center justify-center gap-2 shadow-md cursor-pointer"
+              >
+                <span className="material-symbols-outlined text-[20px]">add_shopping_cart</span>
+                Add to Order
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <StudentBottomNav active="menu" />
     </div>
   )
 }
