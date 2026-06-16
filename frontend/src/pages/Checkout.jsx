@@ -23,10 +23,12 @@ export default function Checkout() {
   const [paymentMethod, setPaymentMethod] = useState('mpesa')
   const [mpesaPhone, setMpesaPhone] = useState('')
   const [isProcessing, setIsProcessing] = useState(false)
-  const [awaitingMpesa, setAwaitingMpesa] = useState(false) // true while polling for callback
+  const [awaitingMpesa, setAwaitingMpesa] = useState(false)
   const [requestError, setRequestError] = useState('')
   const [successMessage, setSuccessMessage] = useState('')
   const [walletBalance, setWalletBalance] = useState(0)
+  const [paymentResult, setPaymentResult] = useState(null) // 'success' | 'failed' | null
+  const [resultOrderId, setResultOrderId] = useState(null)
 
   useEffect(() => {
     axios.get('/wallet').then(({ data }) => setWalletBalance(data.balance)).catch(() => {})
@@ -56,6 +58,18 @@ export default function Checkout() {
       ? 'text-error'
       : 'text-on-surface-variant'
 
+  function showSuccess(orderId) {
+    clearCart()
+    setResultOrderId(orderId)
+    setPaymentResult('success')
+    setTimeout(() => navigate(`/orders/${orderId}/track`), 3000)
+  }
+
+  function showFailed() {
+    setPaymentResult('failed')
+    setAwaitingMpesa(false)
+  }
+
   // Poll the order every 3 seconds until M-Pesa callback has updated its status
   function pollOrderUntilPaid(orderId) {
     setAwaitingMpesa(true)
@@ -67,13 +81,11 @@ export default function Checkout() {
 
         if (data.paymentStatus === 'paid') {
           clearInterval(interval)
-          clearCart()
-          navigate(`/orders/${orderId}/track`)
+          showSuccess(orderId)
         } else if (data.paymentStatus === 'failed' || data.orderStatus === 'cancelled') {
           clearInterval(interval)
-          setAwaitingMpesa(false)
           setSuccessMessage('')
-          setRequestError('Payment cancelled or failed. Please try again.')
+          showFailed()
         }
       } catch {
         // network blip — keep polling
@@ -83,11 +95,8 @@ export default function Checkout() {
     // Give up after 2 minutes (Safaricom STK push times out at 60 s)
     setTimeout(() => {
       clearInterval(interval)
-      if (awaitingMpesa) {
-        setAwaitingMpesa(false)
-        setSuccessMessage('')
-        setRequestError('Payment timed out. Please check if payment went through before retrying.')
-      }
+      setSuccessMessage('')
+      showFailed()
     }, 120_000)
   }
 
@@ -119,9 +128,8 @@ export default function Checkout() {
       if (order?.error) throw new Error(order.error)
 
       if (paymentMethod === 'wallet') {
-        // Wallet payment is instant — go straight to tracking
-        clearCart()
-        navigate(`/orders/${order._id}/track`)
+        setIsProcessing(false)
+        showSuccess(order._id)
         return
       }
 
@@ -258,7 +266,7 @@ export default function Checkout() {
                 </p>
               </div>
             </div>
-            <button className="relative z-10 bg-secondary-container text-on-secondary-container px-4 py-2 rounded-full text-label-md font-label-md font-bold hover:bg-secondary-fixed transition-colors shadow-sm bg-transparent cursor-pointer">
+            <button onClick={() => navigate('/wallet')} className="relative z-10 bg-secondary-container text-on-secondary-container px-4 py-2 rounded-full text-label-md font-label-md font-bold hover:bg-secondary-fixed transition-colors shadow-sm bg-transparent cursor-pointer">
               Top Up
             </button>
           </div>
@@ -402,6 +410,124 @@ export default function Checkout() {
         </button>
         {statusMessage && <p className={`text-xs mt-2 text-center ${statusClass}`}>{statusMessage}</p>}
       </div>
+
+      {/* Payment Result Overlay */}
+      {paymentResult && (
+        <>
+          <style>{`
+            @keyframes drawCircle {
+              to { stroke-dashoffset: 0; }
+            }
+            @keyframes drawCheck {
+              to { stroke-dashoffset: 0; }
+            }
+            @keyframes drawX {
+              to { stroke-dashoffset: 0; }
+            }
+            @keyframes fadeSlideUp {
+              from { opacity: 0; transform: translateY(16px); }
+              to   { opacity: 1; transform: translateY(0); }
+            }
+            @keyframes shrinkBar {
+              from { width: 100%; }
+              to   { width: 0%; }
+            }
+            @keyframes popIn {
+              0%   { transform: scale(0.5); opacity: 0; }
+              70%  { transform: scale(1.1); }
+              100% { transform: scale(1);   opacity: 1; }
+            }
+          `}</style>
+
+          <div className="fixed inset-0 z-[300] flex flex-col items-center justify-center px-6"
+            style={{ background: paymentResult === 'success' ? '#f0fdf4' : '#fff1f2' }}
+          >
+            {paymentResult === 'success' ? (
+              <>
+                {/* Animated checkmark */}
+                <div style={{ animation: 'popIn 0.5s cubic-bezier(0.175,0.885,0.32,1.275) forwards' }}>
+                  <svg width="120" height="120" viewBox="0 0 120 120">
+                    <circle cx="60" cy="60" r="54" fill="#dcfce7" />
+                    <circle
+                      cx="60" cy="60" r="54"
+                      fill="none" stroke="#16a34a" strokeWidth="6"
+                      strokeDasharray="339" strokeDashoffset="339"
+                      style={{ animation: 'drawCircle 0.6s ease forwards 0.3s' }}
+                    />
+                    <polyline
+                      points="36,62 52,78 84,42"
+                      fill="none" stroke="#16a34a" strokeWidth="7"
+                      strokeLinecap="round" strokeLinejoin="round"
+                      strokeDasharray="90" strokeDashoffset="90"
+                      style={{ animation: 'drawCheck 0.4s ease forwards 0.9s' }}
+                    />
+                  </svg>
+                </div>
+
+                <div style={{ animation: 'fadeSlideUp 0.5s ease forwards 1s', opacity: 0 }}
+                  className="text-center mt-6"
+                >
+                  <h2 className="text-2xl font-bold text-green-700">Payment Successful!</h2>
+                  <p className="text-green-600 mt-2 text-sm">Your order has been received by the kitchen.</p>
+                  <p className="text-green-500 text-xs mt-4">Redirecting to your order…</p>
+                </div>
+
+                {/* Countdown bar */}
+                <div className="mt-6 w-48 h-1 bg-green-100 rounded-full overflow-hidden"
+                  style={{ animation: 'fadeSlideUp 0.5s ease forwards 1s', opacity: 0 }}
+                >
+                  <div
+                    className="h-full bg-green-500 rounded-full"
+                    style={{ animation: 'shrinkBar 3s linear forwards 1.2s' }}
+                  />
+                </div>
+              </>
+            ) : (
+              <>
+                {/* Animated X */}
+                <div style={{ animation: 'popIn 0.5s cubic-bezier(0.175,0.885,0.32,1.275) forwards' }}>
+                  <svg width="120" height="120" viewBox="0 0 120 120">
+                    <circle cx="60" cy="60" r="54" fill="#fee2e2" />
+                    <circle
+                      cx="60" cy="60" r="54"
+                      fill="none" stroke="#dc2626" strokeWidth="6"
+                      strokeDasharray="339" strokeDashoffset="339"
+                      style={{ animation: 'drawCircle 0.6s ease forwards 0.3s' }}
+                    />
+                    <line
+                      x1="40" y1="40" x2="80" y2="80"
+                      stroke="#dc2626" strokeWidth="7" strokeLinecap="round"
+                      strokeDasharray="57" strokeDashoffset="57"
+                      style={{ animation: 'drawX 0.3s ease forwards 0.9s' }}
+                    />
+                    <line
+                      x1="80" y1="40" x2="40" y2="80"
+                      stroke="#dc2626" strokeWidth="7" strokeLinecap="round"
+                      strokeDasharray="57" strokeDashoffset="57"
+                      style={{ animation: 'drawX 0.3s ease forwards 1.1s' }}
+                    />
+                  </svg>
+                </div>
+
+                <div style={{ animation: 'fadeSlideUp 0.5s ease forwards 0.8s', opacity: 0 }}
+                  className="text-center mt-6"
+                >
+                  <h2 className="text-2xl font-bold text-red-700">Payment Failed</h2>
+                  <p className="text-red-500 mt-2 text-sm">The payment was cancelled or did not go through.</p>
+                </div>
+
+                <button
+                  onClick={() => setPaymentResult(null)}
+                  style={{ animation: 'fadeSlideUp 0.5s ease forwards 1.2s', opacity: 0 }}
+                  className="mt-8 px-8 py-3 bg-red-600 text-white font-bold rounded-xl hover:bg-red-700 transition-colors cursor-pointer border-none"
+                >
+                  Try Again
+                </button>
+              </>
+            )}
+          </div>
+        </>
+      )}
     </div>
   )
 }

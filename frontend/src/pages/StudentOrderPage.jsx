@@ -184,7 +184,7 @@ export default function StudentOrderPage() {
           </section>
 
           <section className="md:hidden">
-            <h1 className="text-3xl font-bold text-primary">{greeting}, Guest!</h1>
+            <h1 className="text-3xl font-bold text-primary">{greeting}, {user ? user.name : 'Guest'}!</h1>
             <p className="text-base text-on-surface-variant mt-1">What are you craving today?</p>
           </section>
 

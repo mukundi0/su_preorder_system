@@ -29,7 +29,9 @@ export default function WalletPage() {
   const [error, setError]               = useState(null)
   const [selectedPreset, setSelectedPreset] = useState(500)
   const [customAmount, setCustomAmount] = useState('')
+  const [phone, setPhone]               = useState('')
   const [isTopping, setIsTopping]       = useState(false)
+  const [awaitingMpesa, setAwaitingMpesa] = useState(false)
   const [topUpMsg, setTopUpMsg]         = useState({ type: '', text: '' })
 
   const fetchWallet = useCallback(async () => {
@@ -44,23 +46,62 @@ export default function WalletPage() {
     }
   }, [])
 
-  useEffect(() => { fetchWallet() }, [fetchWallet])
+  useEffect(() => {
+    fetchWallet()
+    const interval = setInterval(fetchWallet, 15000)
+    return () => clearInterval(interval)
+  }, [fetchWallet])
 
   const activeAmount = customAmount ? Number(customAmount) : selectedPreset
+
+  // Poll the wallet balance every 3 s until it increases (callback has credited it)
+  function pollUntilCredited(expectedIncrease) {
+    setAwaitingMpesa(true)
+    setTopUpMsg({ type: 'info', text: 'Check your phone — enter your M-Pesa PIN to complete the top-up.' })
+
+    const snapshotBalance = balance
+    const interval = setInterval(async () => {
+      try {
+        const { data } = await axios.get('/wallet')
+        if (data.balance > snapshotBalance) {
+          clearInterval(interval)
+          setBalance(data.balance)
+          setTransactions(data.transactions)
+          setAwaitingMpesa(false)
+          setTopUpMsg({ type: 'success', text: `${formatCurrency(expectedIncrease)} added to your wallet!` })
+          setCustomAmount('')
+        }
+      } catch {
+        // network blip — keep polling
+      }
+    }, 3000)
+
+    // Give up after 2 minutes
+    setTimeout(() => {
+      clearInterval(interval)
+      setAwaitingMpesa(false)
+      setTopUpMsg((prev) =>
+        prev.type !== 'success'
+          ? { type: 'error', text: 'Payment timed out. Check if the top-up went through before retrying.' }
+          : prev
+      )
+    }, 120_000)
+  }
 
   const handleTopUp = async () => {
     if (!activeAmount || activeAmount <= 0) {
       setTopUpMsg({ type: 'error', text: 'Enter a valid amount' })
       return
     }
+    if (!phone.trim()) {
+      setTopUpMsg({ type: 'error', text: 'Enter your M-Pesa phone number' })
+      return
+    }
     setIsTopping(true)
     setTopUpMsg({ type: '', text: '' })
     try {
-      const { data } = await axios.post('/wallet/topup', { amount: activeAmount })
-      setBalance(data.balance)
-      setTransactions(prev => [data.transaction, ...prev])
-      setTopUpMsg({ type: 'success', text: `${formatCurrency(activeAmount)} added to your wallet!` })
-      setCustomAmount('')
+      await axios.post('/mpesa/topup', { amount: activeAmount, phone: phone.trim() })
+      pollUntilCredited(activeAmount)
     } catch (e) {
       setTopUpMsg({ type: 'error', text: e?.response?.data?.error || 'Top up failed. Try again.' })
     } finally {
@@ -68,12 +109,25 @@ export default function WalletPage() {
     }
   }
 
+  const [showStatement, setShowStatement] = useState(false)
+
   const monthStart = new Date()
   monthStart.setDate(1)
   monthStart.setHours(0, 0, 0, 0)
   const monthlyTopUp = transactions
     .filter(tx => tx.type === 'credit' && new Date(tx.createdAt) >= monthStart)
     .reduce((sum, tx) => sum + tx.amount, 0)
+  const monthlySpend = transactions
+    .filter(tx => tx.type === 'debit' && new Date(tx.createdAt) >= monthStart)
+    .reduce((sum, tx) => sum + tx.amount, 0)
+
+  const groupedTransactions = transactions.reduce((groups, tx) => {
+    const d = new Date(tx.createdAt)
+    const label = d.toLocaleDateString('en-KE', { month: 'long', year: 'numeric' })
+    if (!groups[label]) groups[label] = []
+    groups[label].push(tx)
+    return groups
+  }, {})
 
   if (error) {
     return (
@@ -123,7 +177,7 @@ export default function WalletPage() {
                   >
                     <span className="material-symbols-outlined text-[18px]">add_circle</span> Top Up
                   </button>
-                  <button className="bg-white/10 hover:bg-white/20 border border-white/20 px-5 py-2.5 rounded-lg font-semibold flex items-center gap-2 active:scale-95 transition-all cursor-pointer text-sm">
+                  <button onClick={() => setShowStatement(true)} className="bg-white/10 hover:bg-white/20 border border-white/20 px-5 py-2.5 rounded-lg font-semibold flex items-center gap-2 active:scale-95 transition-all cursor-pointer text-sm">
                     <span className="material-symbols-outlined text-[18px]">history</span> Statement
                   </button>
                 </div>
@@ -135,7 +189,7 @@ export default function WalletPage() {
             <section className="bg-surface-container-lowest rounded-xl p-6 shadow-sm border border-outline-variant">
               <div className="flex justify-between items-center mb-6">
                 <h2 className="text-xl font-bold text-primary">Recent Activity</h2>
-                <button className="text-primary font-semibold text-sm hover:underline bg-transparent border-none cursor-pointer">View All</button>
+                <button onClick={() => setShowStatement(true)} className="text-primary font-semibold text-sm hover:underline bg-transparent border-none cursor-pointer">View All</button>
               </div>
 
               {loading ? (
@@ -230,18 +284,33 @@ export default function WalletPage() {
                   />
                 </div>
 
+                <div className="relative">
+                  <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-[18px]">phone</span>
+                  <input
+                    type="tel"
+                    value={phone}
+                    onChange={e => setPhone(e.target.value)}
+                    placeholder="M-Pesa number e.g. 0712345678"
+                    className="w-full pl-10 pr-4 py-3 rounded-lg border-2 border-outline-variant focus:border-primary outline-none transition-all text-primary bg-surface text-sm"
+                  />
+                </div>
+
                 {topUpMsg.text && (
-                  <p className={`text-xs font-medium ${topUpMsg.type === 'success' ? 'text-[#28A745]' : 'text-error'}`}>
+                  <p className={`text-xs font-medium ${
+                    topUpMsg.type === 'success' ? 'text-[#28A745]'
+                    : topUpMsg.type === 'info'  ? 'text-primary'
+                    : 'text-error'
+                  }`}>
                     {topUpMsg.text}
                   </p>
                 )}
 
                 <button
                   onClick={handleTopUp}
-                  disabled={isTopping || !activeAmount || activeAmount <= 0}
+                  disabled={isTopping || awaitingMpesa || !activeAmount || activeAmount <= 0}
                   className="w-full py-3.5 bg-primary text-on-primary rounded-lg font-bold shadow-md hover:bg-primary-container transition-all active:scale-[0.98] cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed text-sm"
                 >
-                  {isTopping ? 'Processing…' : 'Proceed to Pay'}
+                  {awaitingMpesa ? 'Waiting for M-Pesa…' : isTopping ? 'Processing…' : 'Proceed to Pay'}
                 </button>
               </div>
             </div>
@@ -262,11 +331,11 @@ export default function WalletPage() {
               </p>
               <button
                 onClick={handleTopUp}
-                disabled={isTopping || !activeAmount || activeAmount <= 0}
+                disabled={isTopping || awaitingMpesa || !activeAmount || activeAmount <= 0}
                 className="w-full py-3 bg-[#49b249] text-white rounded-lg font-bold flex items-center justify-center gap-2 hover:opacity-90 transition-all active:scale-[0.98] cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed text-sm"
               >
                 <span className="material-symbols-outlined text-[18px]">bolt</span>
-                Top Up {activeAmount > 0 ? formatCurrency(activeAmount) : ''} Now
+                {awaitingMpesa ? 'Waiting for M-Pesa…' : `Top Up ${activeAmount > 0 ? formatCurrency(activeAmount) : ''} Now`}
               </button>
             </div>
 
@@ -290,6 +359,98 @@ export default function WalletPage() {
           </aside>
         </div>
       </main>
+
+      {/* Statement Drawer */}
+      {showStatement && (
+        <div className="fixed inset-0 z-[200] flex">
+          {/* Backdrop */}
+          <div className="flex-1 bg-black/40 backdrop-blur-sm" onClick={() => setShowStatement(false)} />
+
+          {/* Panel — slides in from the right on md+, full screen on mobile */}
+          <div className="w-full md:w-[480px] bg-surface flex flex-col h-full shadow-2xl overflow-hidden animate-in slide-in-from-right duration-300">
+
+            {/* Panel header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-outline-variant shrink-0">
+              <div>
+                <h2 className="text-lg font-bold text-primary">Account Statement</h2>
+                <p className="text-xs text-on-surface-variant mt-0.5">All wallet activity</p>
+              </div>
+              <button
+                onClick={() => setShowStatement(false)}
+                className="w-9 h-9 rounded-full bg-surface-container flex items-center justify-center text-on-surface-variant hover:bg-surface-container-high transition-colors border-none cursor-pointer"
+              >
+                <span className="material-symbols-outlined text-lg">close</span>
+              </button>
+            </div>
+
+            {/* Summary strip */}
+            <div className="grid grid-cols-3 gap-px bg-outline-variant shrink-0">
+              <div className="bg-surface px-4 py-4 text-center">
+                <p className="text-[10px] text-on-surface-variant uppercase tracking-wider mb-1">Balance</p>
+                <p className="font-bold text-primary text-sm">{formatCurrency(balance)}</p>
+              </div>
+              <div className="bg-surface px-4 py-4 text-center">
+                <p className="text-[10px] text-on-surface-variant uppercase tracking-wider mb-1">In (this month)</p>
+                <p className="font-bold text-[#28A745] text-sm">+{formatCurrency(monthlyTopUp)}</p>
+              </div>
+              <div className="bg-surface px-4 py-4 text-center">
+                <p className="text-[10px] text-on-surface-variant uppercase tracking-wider mb-1">Spent (this month)</p>
+                <p className="font-bold text-secondary text-sm">−{formatCurrency(monthlySpend)}</p>
+              </div>
+            </div>
+
+            {/* Transaction list */}
+            <div className="flex-1 overflow-y-auto">
+              {transactions.length === 0 ? (
+                <div className="flex flex-col items-center justify-center h-full text-on-surface-variant gap-3">
+                  <span className="material-symbols-outlined text-5xl">receipt_long</span>
+                  <p className="text-sm">No transactions yet.</p>
+                </div>
+              ) : (
+                Object.entries(groupedTransactions).map(([month, txs]) => (
+                  <div key={month}>
+                    <div className="px-6 py-2 bg-surface-container-low sticky top-0">
+                      <p className="text-xs font-bold text-on-surface-variant uppercase tracking-wider">{month}</p>
+                    </div>
+                    <div className="divide-y divide-outline-variant">
+                      {txs.map(tx => (
+                        <div key={tx._id} className="flex items-center gap-4 px-6 py-4 hover:bg-surface-container-low transition-colors">
+                          <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${
+                            tx.type === 'credit' ? 'bg-primary/10 text-primary' : 'bg-secondary/10 text-secondary'
+                          }`}>
+                            <span className="material-symbols-outlined text-[18px]" style={{ fontVariationSettings: "'FILL' 0" }}>
+                              {tx.type === 'credit' ? 'payments' : 'restaurant'}
+                            </span>
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-semibold text-on-surface truncate">{tx.description}</p>
+                            <p className="text-xs text-on-surface-variant mt-0.5">{formatTxDate(tx.createdAt)}</p>
+                            {tx.reference && (
+                              <p className="text-[10px] text-on-surface-variant/60 mt-0.5 font-mono truncate">Ref: {tx.reference}</p>
+                            )}
+                          </div>
+                          <div className="text-right shrink-0">
+                            <p className={`font-bold text-sm ${tx.type === 'credit' ? 'text-[#28A745]' : 'text-secondary'}`}>
+                              {tx.type === 'credit' ? '+' : '−'}{formatCurrency(tx.amount)}
+                            </p>
+                            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full uppercase ${
+                              tx.status === 'completed' ? 'bg-green-100 text-green-700'
+                              : tx.status === 'pending'  ? 'bg-yellow-100 text-yellow-700'
+                              : 'bg-red-100 text-red-700'
+                            }`}>
+                              {tx.status}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       <StudentBottomNav active="wallet" />
     </div>
