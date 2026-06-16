@@ -162,22 +162,14 @@ export default function MenuManagementPage() {
             <h2 className="text-headline-sm font-bold text-primary">Strathmore Dining</h2>
           </div>
           <div className="flex items-center gap-2 md:gap-4">
-            <div className="hidden md:block relative">
-              <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline text-[20px]">search</span>
-              <input
-                type="text"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="w-64 h-10 pl-10 pr-4 rounded-lg border border-outline-variant bg-surface-container-low focus:border-primary focus:ring-1 focus:ring-primary outline-none text-body-md transition-all"
-                placeholder="Search menu items..."
-              />
-            </div>
-            <button className="text-on-surface-variant hover:bg-surface-container-low p-2 rounded-full transition-colors cursor-pointer">
+
+            {/* <button className="text-on-surface-variant hover:bg-surface-container-low p-2 rounded-full transition-colors cursor-pointer">
               <span className="material-symbols-outlined">notifications</span>
-            </button>
-            <button className="text-on-surface-variant hover:bg-surface-container-low p-2 rounded-full transition-colors cursor-pointer">
+            </button> */}
+            
+            {/* <button className="text-on-surface-variant hover:bg-surface-container-low p-2 rounded-full transition-colors cursor-pointer">
               <span className="material-symbols-outlined">account_circle</span>
-            </button>
+            </button> */}
           </div>
         </header>
 
@@ -227,16 +219,29 @@ export default function MenuManagementPage() {
               </div>
             </div>
 
-            <div className="hidden md:flex gap-4 mb-2">
-              <select
-                value={categoryFilter}
-                onChange={(e) => setCategoryFilter(e.target.value)}
-                className="px-4 py-3 rounded-lg border border-outline-variant bg-surface text-body-md focus:border-primary outline-none min-w-[180px]"
-              >
-                {categories?.map((cat) => (
-                  <option key={cat._id} value={cat._id}>{toPascalCase(cat.name)}</option>
-                ))}
-              </select>
+            <div className='flex gap-4 mt-2'>
+              <div className="hidden md:block relative flex-1">
+                <span className="material-symbols-outlined absolute left-3 top-4/10 -translate-y-1/2 text-outline text-[20px]">search</span>
+                <input
+                  type="text"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="w-full h-10 pl-10 pr-4 rounded-lg border border-outline-variant bg-surface-container-low focus:border-primary focus:ring-1 focus:ring-primary outline-none text-body-md transition-all"
+                  placeholder="Search menu items..."
+                />
+              </div>
+
+              <div className="hidden md:flex gap-4 mb-2">
+                <select
+                  value={categoryFilter}
+                  onChange={(e) => setCategoryFilter(e.target.value)}
+                  className="px-4 py-3 rounded-lg border border-outline-variant bg-surface text-body-md focus:border-primary outline-none min-w-[180px]"
+                >
+                  {categories?.map((cat) => (
+                    <option key={cat._id} value={cat._id}>{toPascalCase(cat.name)}</option>
+                  ))}
+                </select>
+              </div>
             </div>
 
             {loading && (

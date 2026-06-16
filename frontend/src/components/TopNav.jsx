@@ -23,13 +23,13 @@ export default function TopNav({ search, onSearchChange, onAddClick }) {
           Add New Category
         </button>
         <div className="flex items-center gap-1 border-l border-outline-variant pl-4 ml-2">
-          <button className="p-2 text-on-surface-variant hover:bg-surface-container rounded-full transition-colors relative cursor-pointer">
+          {/* <button className="p-2 text-on-surface-variant hover:bg-surface-container rounded-full transition-colors relative cursor-pointer">
             <span className="material-symbols-outlined">notifications</span>
             <span className="absolute top-2 right-2 w-2 h-2 bg-secondary rounded-full border-2 border-surface-container-lowest"></span>
-          </button>
-          <button className="p-2 text-on-surface-variant hover:bg-surface-container rounded-full transition-colors cursor-pointer">
+          </button> */}
+          {/* <button className="p-2 text-on-surface-variant hover:bg-surface-container rounded-full transition-colors cursor-pointer">
             <span className="material-symbols-outlined">help</span>
-          </button>
+          </button> */}
         </div>
       </div>
     </header>

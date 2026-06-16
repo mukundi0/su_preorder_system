@@ -1,4 +1,8 @@
-import { NavLink } from 'react-router-dom'
+import { NavLink, useNavigate } from 'react-router-dom'
+
+import axios from "axios"
+
+import SU_LOGO from '../assets/sulogo.png'
 
 const navItems = [
   { name: 'Dashboard', icon: 'dashboard', path: '/admin/dashboard' },
@@ -8,20 +12,28 @@ const navItems = [
   { name: 'Settings', icon: 'settings', path: '/admin/settings' },
 ]
 
-const bottomItems = [
-  { name: 'Support', icon: 'help' },
-  { name: 'Logout', icon: 'logout' },
-]
-
 export default function Sidebar() {
+
+  const navigate = useNavigate()
+
+  const handleLogout = async () => {
+    try {
+      await axios.post('/auth/logout')
+
+      navigate('/login')
+    } catch (error) {
+      console.error(error)
+    }
+  }
+
   return (
     <aside className="h-screen w-64 fixed left-0 top-0 bg-surface-container-lowest flex flex-col py-6 z-50 border-r border-outline-variant">
       <div className="px-6 mb-8">
         <div className="mb-4">
           <img
             alt="Strathmore University Logo"
-            className="h-10 w-auto object-contain"
-            src="https://lh3.googleusercontent.com/aida-public/AB6AXuAFBTsNnBdmAFd7BaHKPJ3PS04n1fWyCYnlOQD-OEhjUyBhLNKLecAi0QT0sLK9WOncab3bW19MFvIVjY_OhhkpD2s5kerOj7-nMDwi15KeQW7Bnxt0UY4XB7XCuGcvfg3t9jR59suFZBYD3R9MoILZ-eVp-QHvh8FknIfYgral-CyHLmP9-aKAtmAUEXbUpmR0sxqGVJQY8iZ0ezcNH1ohxL2eNKxqoWfBfHfKr5j4wNtZoWwqFUQAwX-zH-XqG9S55plxb91KZeM5"
+            className="h-20 w-auto object-contain"
+            src={SU_LOGO}
           />
         </div>
         <h1 className="font-headline text-xl font-bold text-primary">Kitchen Command</h1>
@@ -48,16 +60,12 @@ export default function Sidebar() {
       </nav>
 
       <div className="mt-auto px-2 space-y-1 border-t border-outline-variant pt-4">
-        {bottomItems.map((item) => (
-          <a
-            key={item.name}
-            href="#"
-            className="text-on-surface-variant hover:text-primary hover:bg-surface-container-high rounded-lg px-4 py-3 flex items-center gap-3 transition-colors duration-200"
-          >
-            <span className="material-symbols-outlined">{item.icon}</span>
-            <span className="font-body text-sm font-medium">{item.name}</span>
-          </a>
-        ))}
+
+        <button onClick={handleLogout} className="text-on-surface-variant hover:text-primary hover:bg-surface-container-high rounded-lg px-4 py-3 flex items-center gap-3 transition-colors duration-200 w-full">
+          <span className="material-symbols-outlined">logout</span>
+          <span className="font-body text-sm font-medium">Logout</span>
+        </button>
+
         <div className="px-4 py-3 mt-4">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-full overflow-hidden border border-on-primary-container/30">

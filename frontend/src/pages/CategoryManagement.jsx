@@ -147,12 +147,12 @@ export default function CategoryManagement() {
           <div className="px-6 py-4 border-b border-outline-variant bg-surface-container-lowest flex items-center justify-between">
             <h3 className="text-base font-semibold text-primary">Menu Hierarchy</h3>
             <div className="flex items-center gap-2">
-              <button className="p-2 hover:bg-surface-container rounded-lg text-on-surface-variant transition-colors cursor-pointer">
+              {/* <button className="p-2 hover:bg-surface-container rounded-lg text-on-surface-variant transition-colors cursor-pointer">
                 <span className="material-symbols-outlined">filter_list</span>
               </button>
               <button className="p-2 hover:bg-surface-container rounded-lg text-on-surface-variant transition-colors cursor-pointer">
                 <span className="material-symbols-outlined">download</span>
-              </button>
+              </button> */}
             </div>
           </div>
 
