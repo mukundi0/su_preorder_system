@@ -148,6 +148,7 @@ export async function mpesaCallback(req, res) {
         order.orderStatus           = 'received'
         order.mpesaReceiptNumber    = mpesaReceiptNumber
         order.qrCode                = qrDataUrl
+        order.qrPin                 = order.orderNumber?.split('-')[1] ?? ''
         await order.save()
         console.log(`Order ${order.orderNumber} updated to PAID.`)
 
