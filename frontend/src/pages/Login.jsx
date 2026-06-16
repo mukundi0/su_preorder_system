@@ -113,9 +113,9 @@ function Login() {
                 </svg>
                 PASSWORD
               </label>
-              <a href="/forgot-password" className="text-xs text-red-500 hover:underline">
+              {/* <a href="/forgot-password" className="text-xs text-red-500 hover:underline">
                 Forgot Password?
-              </a>
+              </a> */}
             </div>
             <div className="relative">
               <input
@@ -147,7 +147,7 @@ function Login() {
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          {/* <div className="flex items-center gap-2">
             <input
               type="checkbox"
               id="remember"
@@ -158,7 +158,7 @@ function Login() {
             <label htmlFor="remember" className="text-xs text-gray-500">
               Remember this device
             </label>
-          </div>
+          </div> */}
 
           <button
             type="submit"

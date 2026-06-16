@@ -2,7 +2,6 @@ import axios from "axios"
 import { useState, useEffect } from "react"
 import { useNavigate } from 'react-router-dom'
 
-import SU_LOGO from '../assets/sulogo.png'
 import HERO_IMAGE from '../assets/heroImage.png'
 import { useCart } from "../context/CartContext"
 import { useAuth } from "../context/AuthContext"
@@ -171,71 +170,8 @@ export default function StudentOrderPage() {
     )
   )
 
-  const handleLogout = async () => {
-    try {
-      await axios.post('/auth/logout')
-
-      navigate('/login')
-    } catch (error) {
-      console.error(error)
-    }
-  }
-
   return (
     <div className="min-h-screen bg-background text-on-background font-body pb-24 lg:pb-0">
-      <header className="sticky top-0 z-50 flex justify-between items-center w-full px-4 md:px-12 h-16 bg-surface border-b border-outline-variant">
-        <div className="flex items-center gap-4 md:gap-8">
-          <div className="flex items-center text-primary font-bold">
-            <img src={SU_LOGO} alt="Strathmore University Logo" className="h-10 w-auto object-contain md:hidden" />
-            <div className="hidden md:flex items-center gap-2 text-lg">
-              <img src={SU_LOGO} alt="Strathmore University Logo" className="h-8 w-auto object-contain" />
-              <span>Strathmore Dining</span>
-            </div>
-          </div>
-
-          <nav className="hidden md:flex items-center h-full">
-            <button className="text-primary border-b-2 border-primary h-full flex items-center px-4 font-semibold bg-transparent cursor-pointer text-sm">Menu</button>
-            <button className="text-on-surface-variant h-full flex items-center px-4 transition-colors hover:bg-surface-container-low bg-transparent cursor-pointer text-sm">Orders</button>
-            <button onClick={() => navigate('/wallet')} className="text-on-surface-variant h-full flex items-center px-4 transition-colors hover:bg-surface-container-low bg-transparent cursor-pointer text-sm">Wallet</button>
-            <button className="text-on-surface-variant h-full flex items-center px-4 transition-colors hover:bg-surface-container-low bg-transparent cursor-pointer text-sm">Profile</button>
-          </nav>
-        </div>
-
-        <div className="flex items-center gap-2 md:gap-4">
-
-          {/* Mobile search bar visible on smaller screens */}
-          <div className="relative block lg:hidden">
-            <input
-              value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)} 
-              className="pl-8 pr-3 py-1.5 rounded-full border-none bg-surface-container text-xs w-40 focus:ring-2 focus:ring-primary outline-none"
-              placeholder="Search..."
-              type="text"
-            />
-          </div>
-
-          <div className="relative hidden lg:block">
-            <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant">search</span>
-            <input
-              value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)} 
-              className="pl-10 pr-4 py-2 rounded-full border-none bg-surface-container text-sm w-64 focus:ring-2 focus:ring-primary outline-none"
-              placeholder="Search for food..."
-              type="text"
-            />
-          </div>
-
-          <button className="text-on-surface-variant hover:bg-surface-container-low transition-colors rounded-full p-2 bg-transparent cursor-pointer relative">
-            <span className="material-symbols-outlined">notifications</span>
-            <span className="absolute top-2 right-2 w-2 h-2 bg-secondary rounded-full" />
-          </button>
-
-          <button onClick={handleLogout} className="text-on-surface-variant hover:bg-surface-container-low transition-colors rounded-full p-2 bg-transparent cursor-pointer" title="Logout">
-            <span className="material-symbols-outlined">logout</span>
-          </button>
-        </div>
-      </header>
-
       <main className="max-w-[1600px] mx-auto px-4 md:px-12 pt-4 md:py-8 flex gap-8">
         <div className="flex-grow space-y-8 md:space-y-10 w-full lg:max-w-[calc(100%-380px)] xl:max-w-[calc(100%-400px)]">
           <section className="relative rounded-xl overflow-hidden h-48 items-center px-10 hidden md:flex">
@@ -253,8 +189,36 @@ export default function StudentOrderPage() {
           </section>
 
           <section className="space-y-4 md:space-y-6">
+
+            {/* Mobile search bar visible on smaller screens */}
+            <div className="relative block lg:hidden">
+            <input
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)} 
+                className="w-full pl-10 pr-4 py-3 rounded-full bg-surface-container border-none outline-none text-sm focus:ring-2 focus:ring-primary"
+                placeholder="Search..."
+                type="text"
+            />
+            </div>
+
+            <div className="relative hidden lg:block">
+            <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant">search</span>
+            <input
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)} 
+                className="w-full pl-10 pr-4 py-3 rounded-full bg-surface-container border-none outline-none text-sm focus:ring-2 focus:ring-primary"
+                placeholder="Search for food..."
+                type="text"
+            />
+            </div>
+
+            {/* <button className="text-on-surface-variant hover:bg-surface-container-low transition-colors rounded-full p-2 bg-transparent cursor-pointer relative">
+            <span className="material-symbols-outlined">notifications</span>
+            <span className="absolute top-2 right-2 w-2 h-2 bg-secondary rounded-full" />
+            </button> */}
+
             <div className="sticky top-16 z-40 bg-surface/95 backdrop-blur-md py-3 -mx-4 px-4 md:mx-0 md:px-0 flex gap-3 overflow-x-auto no-scrollbar">
-              {categories.map((category) => (
+              {categories?.map((category) => (
                 <button
                   key={category._id}
                   onClick={() => setSelectedCategory(category.name)}
@@ -270,13 +234,13 @@ export default function StudentOrderPage() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 md:gap-6">
-              {filteredMenuItems.length === 0 ? (
+              {filteredMenuItems?.length === 0 ? (
                 <div className="col-span-full text-center py-12 text-on-surface-variant">
                   <span className="material-symbols-outlined text-4xl block mb-2">restaurant_menu</span>
                   {searchInput ? `No items match "${searchInput}"` : 'No available menu items for the selected category'}
                 </div>
               ) : (
-                filteredMenuItems.map((item) => (
+                filteredMenuItems?.map((item) => (
                   <div key={item._id} className="bg-surface-container-lowest border border-outline-variant rounded-xl overflow-hidden flex h-32 md:h-auto md:flex-col shadow-[0_4px_12px_rgba(0,0,0,0.02)] md:shadow-none hover:shadow-lg transition-all group">
                     <div className="w-1/3 md:w-full h-full md:h-44 lg:h-48 bg-surface-container overflow-hidden">
                       {item.imageUrl ? (

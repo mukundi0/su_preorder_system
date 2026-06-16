@@ -86,30 +86,6 @@ export default function WalletPage() {
   return (
     <div className="min-h-screen bg-background text-on-background font-body pb-24 md:pb-0">
 
-      {/* Header */}
-      <header className="sticky top-0 z-50 flex justify-between items-center w-full px-4 md:px-12 h-16 bg-surface border-b border-outline-variant">
-        <div className="flex items-center gap-4 md:gap-8">
-          <div className="flex items-center gap-2">
-            <img src={SU_LOGO} alt="Strathmore University Logo" className="h-10 w-auto object-contain" />
-            <span className="hidden md:inline font-bold text-primary text-base">Strathmore Dining</span>
-          </div>
-          <nav className="hidden md:flex items-center h-full">
-            <button onClick={() => navigate('/student')} className="text-on-surface-variant h-full flex items-center px-4 transition-colors hover:bg-surface-container-low bg-transparent cursor-pointer text-sm">Menu</button>
-            <button className="text-on-surface-variant h-full flex items-center px-4 transition-colors hover:bg-surface-container-low bg-transparent cursor-pointer text-sm">Orders</button>
-            <button className="text-primary border-b-2 border-primary h-full flex items-center px-4 font-semibold bg-transparent cursor-pointer text-sm">Wallet</button>
-            <button className="text-on-surface-variant h-full flex items-center px-4 transition-colors hover:bg-surface-container-low bg-transparent cursor-pointer text-sm">Profile</button>
-          </nav>
-        </div>
-        <div className="flex items-center gap-2">
-          <button className="p-2 text-on-surface-variant hover:bg-surface-container-low rounded-full transition-colors bg-transparent cursor-pointer">
-            <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 0" }}>notifications</span>
-          </button>
-          <button className="p-2 text-on-surface-variant hover:bg-surface-container-low rounded-full transition-colors bg-transparent cursor-pointer">
-            <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 0" }}>account_circle</span>
-          </button>
-        </div>
-      </header>
-
       <main className="max-w-7xl mx-auto px-4 md:px-12 py-6 md:py-8">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8">
 

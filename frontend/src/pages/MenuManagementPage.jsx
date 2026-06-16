@@ -260,7 +260,7 @@ export default function MenuManagementPage() {
               </div>
             )}
 
-            {!loading && !error && items.length === 0 && (
+            {!loading && !error && items?.length === 0 && (
               <div className="flex flex-col items-center justify-center py-16 text-on-surface-variant">
                 <span className="material-symbols-outlined text-5xl mb-3">search_off</span>
                 <p className="text-body-lg font-semibold">No items found</p>
@@ -288,11 +288,11 @@ export default function MenuManagementPage() {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-outline-variant">
-                        {items.map((item) => (
-                          <tr key={item._id} className="hover:bg-surface-container-low/50 transition-colors">
+                        {items?.map((item) => (
+                          <tr key={item?._id} className="hover:bg-surface-container-low/50 transition-colors">
                             <td className="p-4">
                               <div className="w-16 h-16 rounded-md overflow-hidden bg-surface-variant">
-                                {item.imageUrl ? (
+                                {item?.imageUrl ? (
                                   <img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover" />
                                 ) : (
                                   <div className="w-full h-full flex items-center justify-center text-on-surface-variant">
@@ -302,12 +302,12 @@ export default function MenuManagementPage() {
                               </div>
                             </td>
                             <td className="p-4">
-                              <p className="text-body-lg font-semibold text-on-surface">{item.name}</p>
+                              <p className="text-body-lg font-semibold text-on-surface">{item?.name}</p>
                               {item.description && (
-                                <p className="text-label-md text-outline mt-1 line-clamp-1">{item.description}</p>
+                                <p className="text-label-md text-outline mt-1 line-clamp-1">{item?.description}</p>
                               )}
                             </td>
-                            <td className="p-4 text-body-md text-on-surface-variant">{toPascalCase(item.category.name)}</td>
+                            <td className="p-4 text-body-md text-on-surface-variant">{toPascalCase(item?.category?.name)}</td>
                             <td className="p-4 text-body-md font-semibold text-primary">{formatPrice(item)}</td>
                             <td className="p-4 text-center">
                               <div className="flex flex-col items-center">
@@ -349,7 +349,7 @@ export default function MenuManagementPage() {
                 </div>
 
                 <div className="md:hidden flex flex-col gap-3">
-                  {items.map((item) => (
+                  {items?.map((item) => (
                     <div
                       key={item._id}
                       className={`bg-surface-container-lowest border border-surface-variant rounded-xl p-3 flex items-center gap-4 shadow-sm hover:shadow-md transition-shadow ${
@@ -376,7 +376,7 @@ export default function MenuManagementPage() {
                       </div>
                       <div className="flex-1 min-w-0">
                         <h3 className="text-body-lg font-bold text-on-surface truncate">{item.name}</h3>
-                        <p className="text-[11px] uppercase tracking-wider text-on-surface-variant mt-0.5">{item.category.name}</p>
+                        <p className="text-[11px] uppercase tracking-wider text-on-surface-variant mt-0.5">{item?.category?.name}</p>
                         <p className="text-body-md font-semibold text-primary mt-1">{formatPrice(item)}</p>
                       </div>
                       <div className="flex flex-col items-end gap-2 shrink-0">

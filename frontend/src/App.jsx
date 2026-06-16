@@ -21,6 +21,7 @@ import OrderTracking from './pages/OrderTracking'
 import WalletPage from './pages/WalletPage'
 import ProtectedRoute from "./components/ProtectedRoute"
 import RootRedirect from "./components/RootRedirect"
+import StudentLayout from "./layouts/StudentLayout"
 
 
 // Set axios defaults
@@ -48,10 +49,12 @@ function App() {
                 />
               }
             >
-              <Route path="/student" element={<StudentOrderPage />} />
-              <Route path="/checkout" element={<Checkout />} />
-              <Route path="/orders/:orderId/track" element={<OrderTracking />} />
-              <Route path="/wallet" element={<WalletPage />} />
+              <Route element={<StudentLayout />}>
+                <Route path="/student" element={<StudentOrderPage />} />
+                <Route path="/checkout" element={<Checkout />} />
+                <Route path="/orders/:orderId/track" element={<OrderTracking />} />
+                <Route path="/wallet" element={<WalletPage />} />
+              </Route>
             </Route>
 
             <Route
