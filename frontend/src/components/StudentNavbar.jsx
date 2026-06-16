@@ -1,11 +1,14 @@
 import  axios from "axios"
-import { NavLink, useNavigate } from "react-router-dom"
+import { NavLink, useNavigate, useLocation } from "react-router-dom"
 
 import SU_LOGO from '../assets/sulogo.png'
 
 function StudentNavbar() {
 
     const navigate = useNavigate()
+
+    const location = useLocation()
+    const showOrders = location.pathname.startsWith("/orders")
 
     const handleLogout = async () => {
         try {
@@ -43,7 +46,13 @@ function StudentNavbar() {
                 Menu
             </NavLink>
 
-            {/* <button className="text-on-surface-variant h-full flex items-center px-4 transition-colors hover:bg-surface-container-low bg-transparent cursor-pointer text-sm">Orders</button> */}
+             {showOrders && (
+                <button
+                    className="h-full flex items-center px-4 font-semibold text-sm text-primary border-b-2 border-primarybg-transparent cursor-pointer"
+                >
+                    Orders
+                </button>
+            )}
             
             <NavLink
                 to="/wallet"

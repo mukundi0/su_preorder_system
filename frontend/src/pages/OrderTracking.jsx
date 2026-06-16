@@ -167,43 +167,6 @@ export default function OrderTracking() {
 
   return (
     <div className="min-h-screen bg-background text-on-background font-body-lg antialiased pb-24">
-
-      {/* Header */}
-      <header className="sticky top-0 z-50 flex justify-between items-center w-full px-4 md:px-12 h-16 bg-surface border-b border-border-subtle">
-        <div className="flex items-center gap-4 md:gap-8">
-          {/* Back button — mobile only */}
-          <button
-            aria-label="Go back"
-            onClick={() => navigate('/student')}
-            className="md:hidden p-2 -ml-2 text-primary hover:bg-surface-container-low rounded-full transition-colors bg-transparent cursor-pointer"
-          >
-            <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 0" }}>arrow_back</span>
-          </button>
-
-          <div className="flex items-center gap-2">
-            <img src={SU_LOGO} alt="Strathmore University Logo" className="h-10 w-auto object-contain" />
-            <span className="hidden md:inline font-bold text-primary text-base">Strathmore Dining</span>
-          </div>
-
-          {/* Desktop nav — Orders active */}
-          <nav className="hidden md:flex items-center h-full">
-            <button onClick={() => navigate('/student')} className="text-on-surface-variant h-full flex items-center px-4 transition-colors hover:bg-surface-container-low bg-transparent cursor-pointer text-sm">Menu</button>
-            <button className="text-primary border-b-2 border-primary h-full flex items-center px-4 font-semibold bg-transparent cursor-pointer text-sm">Orders</button>
-            <button onClick={() => navigate('/wallet')} className="text-on-surface-variant h-full flex items-center px-4 transition-colors hover:bg-surface-container-low bg-transparent cursor-pointer text-sm">Wallet</button>
-            <button className="text-on-surface-variant h-full flex items-center px-4 transition-colors hover:bg-surface-container-low bg-transparent cursor-pointer text-sm">Profile</button>
-          </nav>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <button className="p-2 text-on-surface-variant hover:bg-surface-container-low rounded-full transition-colors bg-transparent cursor-pointer">
-            <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 0" }}>notifications</span>
-          </button>
-          <button className="p-2 text-on-surface-variant hover:bg-surface-container-low rounded-full transition-colors bg-transparent cursor-pointer">
-            <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 0" }}>account_circle</span>
-          </button>
-        </div>
-      </header>
-
       <main className="px-4 pt-6 flex flex-col gap-8 max-w-lg mx-auto">
 
         {/* Order Title Row */}
