@@ -121,7 +121,6 @@ export default function WalletPage() {
     .filter(tx => tx.type === 'debit' && new Date(tx.createdAt) >= monthStart)
     .reduce((sum, tx) => sum + tx.amount, 0)
 
-  // Group transactions by month label for the statement view
   const groupedTransactions = transactions.reduce((groups, tx) => {
     const d = new Date(tx.createdAt)
     const label = d.toLocaleDateString('en-KE', { month: 'long', year: 'numeric' })

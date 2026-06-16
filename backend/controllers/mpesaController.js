@@ -111,7 +111,7 @@ export async function mpesaCallback(req, res) {
   res.status(200).json({ ResultCode: 0, ResultDesc: 'Accepted' })
 
   try {
-    console.log('--- 📥 INCOMING MPESA CALLBACK PAYLOAD ---')
+    console.log('INCOMING MPESA CALLBACK PAYLOAD')
     console.log(JSON.stringify(req.body, null, 2))
 
     const callback = req.body?.Body?.stkCallback
@@ -120,7 +120,7 @@ export async function mpesaCallback(req, res) {
     const { CheckoutRequestID, ResultCode, CallbackMetadata } = callback
     const isSuccess = ResultCode === 0
 
-    console.log(`🔍 Processing Callback: ID=${CheckoutRequestID} | ResultCode=${ResultCode} | Success=${isSuccess}`)
+    console.log(`Processing Callback: ID=${CheckoutRequestID} | ResultCode=${ResultCode} | Success=${isSuccess}`)
 
     if (isSuccess) {
       // Extract the receipt number from metadata items array
@@ -128,13 +128,13 @@ export async function mpesaCallback(req, res) {
       const find  = (name) => items.find((i) => i.Name === name)?.Value
       const mpesaReceiptNumber = find('MpesaReceiptNumber') ?? CheckoutRequestID
 
-      console.log(`💳 Mpesa Receipt Found: ${mpesaReceiptNumber}`)
+      console.log(`Mpesa Receipt Found: ${mpesaReceiptNumber}`)
 
       //  Case 1: Order payment 
       console.log(`Locating pending order with CheckoutRequestID: "${CheckoutRequestID}"...`)
       const order = await Order.findOne({ mpesaCheckoutRequestId: CheckoutRequestID })
       if (order && order.paymentStatus === 'pending') {
-        console.log(`📦 Order Found! Current Payment Status: ${order.paymentStatus}`)
+        console.log(`Order Found. Current Payment Status: ${order.paymentStatus}`)
         // Now that payment is confirmed, generate the QR code and activate the order
         const qrPayload = JSON.stringify({
           orderId:     order._id.toString(),
@@ -149,7 +149,16 @@ export async function mpesaCallback(req, res) {
         order.mpesaReceiptNumber    = mpesaReceiptNumber
         order.qrCode                = qrDataUrl
         await order.save()
-        console.log(`🎉 Order ${order.orderNumber} successfully updated to PAID in MongoDB.`)
+        console.log(`Order ${order.orderNumber} updated to PAID.`)
+
+        await WalletTransaction.create({
+          user:        order.user,
+          type:        'debit',
+          amount:      order.totalAmt,
+          description: `Order Payment - #${order.orderNumber}`,
+          reference:   mpesaReceiptNumber,
+          status:      'completed',
+        })
 
         // Refund trigger for orders
         console.log(`Order paid. Executing automated test reversal for receipt: ${mpesaReceiptNumber}`)
