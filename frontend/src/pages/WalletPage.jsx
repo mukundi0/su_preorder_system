@@ -46,7 +46,11 @@ export default function WalletPage() {
     }
   }, [])
 
-  useEffect(() => { fetchWallet() }, [fetchWallet])
+  useEffect(() => {
+    fetchWallet()
+    const interval = setInterval(fetchWallet, 15000)
+    return () => clearInterval(interval)
+  }, [fetchWallet])
 
   const activeAmount = customAmount ? Number(customAmount) : selectedPreset
 
