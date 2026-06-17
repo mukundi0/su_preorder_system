@@ -15,8 +15,8 @@ const UserSchema = mongoose.Schema({
     },
     role: {
         type: String,
-        enum: ["student_staff", "kitchen_staff", "admin"],
-        default: "student_staff"
+        enum: ["student", "kitchen_staff", "admin"],
+        default: "student"
     },
     walletBalance: {
         type: Number,
