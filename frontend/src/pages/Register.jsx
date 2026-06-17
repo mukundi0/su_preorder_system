@@ -37,7 +37,7 @@ function Register() {
       setError("")
       const { data } = await axios.post('auth/register', {
         name, email, password, studentId: studentStaffId,
-        role: "student_staff"
+        role: "student" // Only students can register through the frontend
       })
       if (data.error) {
         return setError(data.error)
