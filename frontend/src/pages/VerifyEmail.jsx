@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { useSearchParams, Link } from "react-router-dom"
 import axios from "axios"
 import sulogo from "../assets/sulogo.png"
@@ -13,6 +13,12 @@ function VerifyEmail() {
   const [resending, setResending] = useState(false)
   const [resendMsg, setResendMsg] = useState("")
 
+  // Prevent the verification request firing twice in React StrictMode.
+  // StrictMode mounts → unmounts → remounts every component in dev, which
+  // would consume the one-time token on the first call and leave the second
+  // call with nothing to find, causing a false "Verification Failed" flash.
+  const hasVerified = useRef(false)
+
   useEffect(() => {
     if (!token) {
       setState("error")
@@ -20,12 +26,12 @@ function VerifyEmail() {
       return
     }
 
-    let cancelled = false
+    if (hasVerified.current) return
+    hasVerified.current = true
 
     const verify = async () => {
       try {
         const { data } = await axios.get(`auth/verify/${encodeURIComponent(token)}`)
-        if (cancelled) return
         if (data.success) {
           setState("success")
         } else {
@@ -33,15 +39,12 @@ function VerifyEmail() {
           setMessage(data.error || "Verification failed.")
         }
       } catch (err) {
-        if (cancelled) return
         setState("error")
         setMessage(err.response?.data?.error || "Verification failed or link expired.")
       }
     }
 
     verify()
-
-    return () => { cancelled = true }
   }, [token])
 
   const handleResend = async () => {
@@ -93,13 +96,10 @@ function VerifyEmail() {
                 Your email has been successfully verified. You can now access your account and start ordering.
               </p>
               <Link
-                to="/home"
+                to="/login"
                 className="mt-2 w-full inline-block bg-[#00193c] text-white font-bold text-sm py-3 px-6 rounded-lg hover:bg-[#002b6a] transition-colors text-center"
               >
-                Continue to Dashboard
-              </Link>
-              <Link to="/login" className="text-sm text-gray-400 hover:text-[#00193c] transition-colors mt-1">
-                Back to Login
+                Continue to Login
               </Link>
             </div>
           )}
