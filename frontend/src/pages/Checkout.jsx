@@ -29,6 +29,7 @@ export default function Checkout() {
   const [walletBalance, setWalletBalance] = useState(0)
   const [paymentResult, setPaymentResult] = useState(null) // 'success' | 'failed' | null
   const [resultOrderId, setResultOrderId] = useState(null)
+  const [showTopUpLink, setShowTopUpLink] = useState(false)
 
   useEffect(() => {
     axios.get('/wallet').then(({ data }) => setWalletBalance(data.balance)).catch(() => {})
@@ -113,9 +114,25 @@ export default function Checkout() {
       setRequestError('Enter your M-Pesa phone number.')
       return
     }
+    if (paymentMethod === 'wallet') {
+      if (walletBalance <= 0) {
+        setRequestError('Your wallet balance is empty. Top up before paying.')
+        setShowTopUpLink(true)
+        return
+      }
+      if (walletBalance < total) {
+        const shortfall = total - walletBalance
+        setRequestError(
+          `Insufficient wallet balance. You need ${formatCurrency(shortfall)} more to complete this order.`
+        )
+        setShowTopUpLink(true)
+        return
+      }
+    }
 
     setRequestError('')
     setSuccessMessage('')
+    setShowTopUpLink(false)
     setIsProcessing(true)
 
     try {
@@ -145,7 +162,8 @@ export default function Checkout() {
       pollOrderUntilPaid(order._id)
 
     } catch (error) {
-      setRequestError(error?.message || 'Failed to place order. Please try again.')
+      const msg = error?.response?.data?.error || error?.response?.data?.message || 'Failed to place order. Please try again.'
+      setRequestError(msg)
     } finally {
       setIsProcessing(false)
     }
@@ -287,7 +305,7 @@ export default function Checkout() {
                 name="payment_method"
                 value="mpesa"
                 checked={paymentMethod === 'mpesa'}
-                onChange={() => setPaymentMethod('mpesa')}
+                onChange={() => { setPaymentMethod('mpesa'); setRequestError(''); setShowTopUpLink(false) }}
                 className="peer sr-only"
               />
               <div
@@ -340,7 +358,7 @@ export default function Checkout() {
                 name="payment_method"
                 value="wallet"
                 checked={paymentMethod === 'wallet'}
-                onChange={() => setPaymentMethod('wallet')}
+                onChange={() => { setPaymentMethod('wallet'); setRequestError(''); setShowTopUpLink(false) }}
                 className="peer sr-only"
               />
               <div
@@ -363,7 +381,11 @@ export default function Checkout() {
                   </div>
                   <div>
                     <span className="block text-body-md font-body-md font-bold">Digital Wallet</span>
-                    <span className="block text-label-md font-label-md text-on-surface-variant mt-0.5">
+                    <span className={`block text-label-md font-label-md mt-0.5 ${
+                      paymentMethod === 'wallet' && walletBalance < total
+                        ? 'text-error font-semibold'
+                        : 'text-on-surface-variant'
+                    }`}>
                       Balance: {formatCurrency(walletBalance)}
                     </span>
                   </div>
@@ -389,7 +411,19 @@ export default function Checkout() {
           >
             {awaitingMpesa ? 'Waiting for M-Pesa...' : isProcessing ? 'Processing...' : 'Confirm & Pay'}
           </button>
-          {statusMessage && <p className={`text-sm mt-3 ${statusClass}`}>{statusMessage}</p>}
+          {statusMessage && (
+            <div className={`text-sm mt-3 ${statusClass}`}>
+              {statusMessage}
+              {showTopUpLink && (
+                <button
+                  onClick={() => navigate('/wallet')}
+                  className="ml-2 underline font-semibold text-primary bg-transparent border-none cursor-pointer p-0"
+                >
+                  Top Up Now
+                </button>
+              )}
+            </div>
+          )}
         </div>
       </main>
 
@@ -408,7 +442,19 @@ export default function Checkout() {
           {awaitingMpesa ? 'Waiting for M-Pesa...' : isProcessing ? 'Processing...' : 'Confirm & Pay'}
           {!isProcessing && !awaitingMpesa && <span className="material-symbols-outlined text-[20px]">arrow_forward</span>}
         </button>
-        {statusMessage && <p className={`text-xs mt-2 text-center ${statusClass}`}>{statusMessage}</p>}
+        {statusMessage && (
+          <div className={`text-xs mt-2 text-center ${statusClass}`}>
+            {statusMessage}
+            {showTopUpLink && (
+              <button
+                onClick={() => navigate('/wallet')}
+                className="ml-1 underline font-semibold text-primary bg-transparent border-none cursor-pointer p-0"
+              >
+                Top Up Now
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Payment Result Overlay */}
