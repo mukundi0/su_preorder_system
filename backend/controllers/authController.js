@@ -32,7 +32,7 @@ export async function registerUser(req, res) {
         }
 
         // Check if role is valid
-        const validRoles = ["student_staff", "kitchen_staff", "admin"];
+        const validRoles = ["student", "kitchen_staff", "admin"];
 
         if (!validRoles.includes(role)) {
             return res.json({
@@ -251,7 +251,7 @@ export async function googleAuth(req, res) {
             user = await User.create({
                 name,
                 email,
-                role: "student_staff", // Admins & Kitchen staff will never get here
+                role: "student", // Admins & Kitchen staff will never get here
                 isVerified: true
             })
         }
