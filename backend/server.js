@@ -16,6 +16,7 @@ import orderRoutes from './routes/orderRoutes.js'
 import walletRoutes from './routes/walletRoutes.js'
 import mpesaRoutes from './routes/mpesaRoutes.js'
 import issueRoutes from './routes/issueRoutes.js'
+import userRoutes from './routes/userRoutes.js'
 
 
 dotenv.config()
@@ -60,6 +61,9 @@ app.use('/api/mpesa', mpesaRoutes)
 
 // Issues
 app.use('/api/issues', issueRoutes)
+
+// Users
+app.use('/api/users', userRoutes)
 
 
 const PORT = process.env.PORT || 8000

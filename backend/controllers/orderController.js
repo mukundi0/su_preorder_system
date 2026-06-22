@@ -250,6 +250,35 @@ export async function updateOrder(req, res) {
     }
 }
 
+// Kitchen staff / admin: advance order through the workflow
+export async function updateOrderStatus(req, res) {
+    try {
+        const { id } = req.params
+        const { orderStatus } = req.body
+
+        const validStatuses = ['pending', 'received', 'preparing', 'ready for pickup', 'ready', 'completed', 'collected', 'cancelled']
+        if (!validStatuses.includes(orderStatus)) {
+            return res.status(400).json({ error: 'Invalid status' })
+        }
+
+        const order = await Order.findByIdAndUpdate(
+            id,
+            { orderStatus },
+            { new: true, runValidators: true }
+        ).populate([
+            { path: 'user' },
+            { path: 'items.item' }
+        ])
+
+        if (!order) return res.status(404).json({ error: 'Order not found' })
+
+        res.json(order)
+    } catch (error) {
+        console.error('Error in updateOrderStatus:', error)
+        res.status(500).json({ error: 'Server error' })
+    }
+}
+
 // For cancelling the order
 export async function deleteOrder(req, res) {
     try {
