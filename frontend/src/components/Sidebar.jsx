@@ -1,8 +1,16 @@
 import { NavLink, useNavigate } from 'react-router-dom'
-
 import axios from "axios"
-
 import SU_LOGO from '../assets/sulogo.png'
+import { useAuth } from '../context/AuthContext'
+
+function initials(name) {
+  if (!name) return '?'
+  return name.trim().split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase()
+}
+
+function roleLabel(role) {
+  return { admin: 'Admin', kitchen_staff: 'Kitchen Staff', student: 'Student' }[role] || role
+}
 
 const navItems = [
   { name: 'Dashboard', icon: 'dashboard', path: '/admin/dashboard' },
@@ -13,7 +21,7 @@ const navItems = [
 ]
 
 export default function Sidebar() {
-
+  const { user } = useAuth()
   const navigate = useNavigate()
 
   const handleLogout = async () => {
@@ -66,20 +74,22 @@ export default function Sidebar() {
           <span className="font-body text-sm font-medium">Logout</span>
         </button>
 
-        <div className="px-4 py-3 mt-4">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full overflow-hidden border border-on-primary-container/30">
-              <img
-                alt="Admin User Avatar"
-                className="w-full h-full object-cover"
-                src="https://lh3.googleusercontent.com/aida-public/AB6AXuBMpXQLt1HyrF5ueqMmRjUTzXMOHsxbFhC1d35rH7txEO1INLKPA1G0W_zo3ifIH0ozGXc6gV0XyALxl8Lo3B2ekaHj0-s0TAaQ1c4NEFjxo3DSWp9sMV7pe7QI8lA4sSSsipndk0AMG39wFCsCtnidsl8tRmB6Vhn9onUXkEgANDf5bHlWRkQnDsrEQS-1L2r_myqcm00aduBNi93iKQ4GI908FDYmz2NndFsdrcrGG-uj3iUVEfiOsclSeba9i7njJx3WOMxaac-0"
-              />
-            </div>
-            <div className="flex flex-col">
-              <span className="text-[10px] text-primary font-bold uppercase tracking-wider">System Status: Online</span>
-            </div>
+        <NavLink
+          to="/admin/settings"
+          className={({ isActive }) =>
+            `flex items-center gap-3 rounded-lg mx-0 px-4 py-3 transition-colors duration-200 cursor-pointer
+            ${isActive ? 'bg-secondary-container text-on-secondary-container' : 'hover:bg-surface-container-high'}`
+          }
+        >
+          <div className="w-8 h-8 rounded-full bg-primary text-on-primary flex items-center justify-center text-xs font-bold shrink-0 select-none">
+            {initials(user?.name)}
           </div>
-        </div>
+          <div className="flex flex-col min-w-0">
+            <span className="text-sm font-semibold text-on-surface truncate">{user?.name || 'User'}</span>
+            <span className="text-[11px] text-on-surface-variant truncate">{roleLabel(user?.role)}</span>
+          </div>
+          <span className="material-symbols-outlined text-on-surface-variant text-[18px] ml-auto shrink-0">chevron_right</span>
+        </NavLink>
       </div>
     </aside>
   )
