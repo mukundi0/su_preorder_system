@@ -32,6 +32,7 @@ export async function getOrder(req, res) {
                 { path: 'items.item' }
             ])
 
+        res.set('Cache-Control', 'no-store')
         res.json(order)
     } catch (error) {
         console.error("Error in getOrder controller:", error)

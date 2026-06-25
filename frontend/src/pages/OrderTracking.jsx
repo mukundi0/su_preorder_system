@@ -65,6 +65,7 @@ export default function OrderTracking() {
   const [order, setOrder] = useState(null)
   const [error, setError] = useState(null)
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false)
+  const [lastUpdated, setLastUpdated] = useState(null)
 
   const [showReportModal, setShowReportModal]   = useState(false)
   const [issueCategory, setIssueCategory]       = useState('')
@@ -113,9 +114,10 @@ export default function OrderTracking() {
 
   const fetchOrder = async () => {
     try {
-      const { data } = await axios.get(`/orders/${orderId}`)
+      const { data } = await axios.get(`/orders/${orderId}`, { params: { _t: Date.now() } })
       if (data?.error) throw new Error(data.error)
       setOrder(data)
+      setLastUpdated(new Date())
     } catch (e) {
       setError(e?.response?.data?.error || e.message || 'Failed to load order')
     }
@@ -123,7 +125,7 @@ export default function OrderTracking() {
 
   useEffect(() => {
     fetchOrder()
-    const interval = setInterval(fetchOrder, 10000)
+    const interval = setInterval(fetchOrder, 5000)
     return () => clearInterval(interval)
   }, [orderId])
 
@@ -181,20 +183,28 @@ export default function OrderTracking() {
 
         {/* Status Card */}
         <section className="bg-surface-card border border-border-subtle rounded-xl p-4 flex flex-col gap-4 relative">
-          <span className="absolute top-4 right-4 text-xs font-semibold tracking-widest uppercase text-on-surface-variant bg-surface-container py-1 px-2 rounded-full">
-            {order.pickupCounter || 'Counter 1'}
-          </span>
-
-          <div className="flex items-center gap-2 pr-24">
-            <span
-              className={`material-symbols-outlined ${isReady || isCollected ? 'text-[#28A745]' : 'text-on-surface-variant'}`}
-              style={{ fontVariationSettings: `'FILL' ${isReady || isCollected ? 1 : 0}` }}
-            >
-              {statusIcon}
-            </span>
-            <span className={`text-base font-bold ${isReady || isCollected ? 'text-[#28A745]' : 'text-on-surface'}`}>
-              {statusLabel}
-            </span>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span
+                className={`material-symbols-outlined ${isReady || isCollected ? 'text-[#28A745]' : 'text-on-surface-variant'}`}
+                style={{ fontVariationSettings: `'FILL' ${isReady || isCollected ? 1 : 0}` }}
+              >
+                {statusIcon}
+              </span>
+              <span className={`text-base font-bold ${isReady || isCollected ? 'text-[#28A745]' : 'text-on-surface'}`}>
+                {statusLabel}
+              </span>
+            </div>
+            <div className="flex flex-col items-end gap-0.5">
+              <span className="text-xs font-semibold tracking-widest uppercase text-on-surface-variant bg-surface-container py-1 px-2 rounded-full">
+                {order.pickupCounter || 'Counter 1'}
+              </span>
+              {lastUpdated && (
+                <span className="text-[10px] text-on-surface-variant opacity-60">
+                  Updated {lastUpdated.toLocaleTimeString('en-KE', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                </span>
+              )}
+            </div>
           </div>
 
           {/* Progress bar */}
@@ -203,15 +213,47 @@ export default function OrderTracking() {
               className="absolute top-0 left-0 h-full bg-[#28A745] rounded-full transition-all duration-700"
               style={{ width: `${progressPct}%` }}
             />
+            {/* shimmer overlay while waiting */}
+            {!isReady && !isCollected && (
+              <div className="absolute top-0 left-0 h-full w-full overflow-hidden rounded-full pointer-events-none">
+                <div className="h-full w-1/3 bg-gradient-to-r from-transparent via-white/40 to-transparent animate-shimmer" />
+              </div>
+            )}
           </div>
 
-          <div className="flex justify-between text-xs font-semibold tracking-widest uppercase text-on-surface-variant">
-            {STATUS_STEPS.map((step, i) => (
-              <span key={step} className={i <= currentStep ? 'text-[#28A745]' : ''}>
-                {STATUS_LABELS[step]}
-              </span>
-            ))}
+          {/* Step indicators */}
+          <div className="flex justify-between items-start">
+            {STATUS_STEPS.map((step, i) => {
+              const done    = i < currentStep
+              const current = i === currentStep && !isCollected
+              const future  = i > currentStep
+              return (
+                <div key={step} className="flex flex-col items-center gap-1.5 flex-1">
+                  <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center transition-all duration-500
+                    ${done    ? 'bg-[#28A745] border-[#28A745]' : ''}
+                    ${current ? 'border-[#28A745] bg-white animate-pulse' : ''}
+                    ${future  ? 'border-outline bg-surface-container' : ''}
+                  `}>
+                    {done && (
+                      <span className="material-symbols-outlined text-white text-[10px]" style={{ fontVariationSettings: "'FILL' 1" }}>check</span>
+                    )}
+                    {current && <div className="w-1.5 h-1.5 rounded-full bg-[#28A745]" />}
+                  </div>
+                  <span className={`text-[10px] font-semibold tracking-widest uppercase text-center transition-colors duration-500
+                    ${done || current ? 'text-[#28A745]' : 'text-on-surface-variant'}`}>
+                    {STATUS_LABELS[step]}
+                  </span>
+                </div>
+              )
+            })}
           </div>
+
+          {isCollected && (
+            <div className="flex items-center justify-center gap-2 py-1 rounded-lg bg-green-50 text-[#28A745] text-sm font-semibold">
+              <span className="material-symbols-outlined text-[18px]" style={{ fontVariationSettings: "'FILL' 1" }}>check_circle</span>
+              Order collected — enjoy your meal!
+            </div>
+          )}
         </section>
 
         {/* QR Code Card */}

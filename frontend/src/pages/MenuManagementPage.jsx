@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react'
 import Sidebar from '../components/Sidebar'
+import KitchenBottomNav from '../components/KitchenBottomNav'
 import AddMenuItemModal from '../components/AddMenuItemModal'
 
 import axios from "axios"
+import { useAuth } from '../context/AuthContext'
 
 function formatPrice(item) {
   if (item.halfPrice != null && item.fullPrice != null) {
@@ -22,6 +24,9 @@ function toPascalCase(str) {
 }
 
 export default function MenuManagementPage() {
+  const { user } = useAuth()
+  const isKitchen = user?.role === 'kitchen_staff'
+
   const [items, setItems] = useState([])
   const [categories, setCategories] = useState([])
   
@@ -180,13 +185,15 @@ export default function MenuManagementPage() {
                 <h2 className="text-headline-lg text-primary font-bold">Menu Inventory</h2>
                 <p className="text-body-lg text-on-surface-variant mt-1">Manage cafeteria offerings and availability.</p>
               </div>
-              <button
-                onClick={handleAdd}
-                className="flex items-center gap-2 bg-primary text-on-primary px-6 py-3 rounded-lg font-bold shadow-sm hover:opacity-90 transition-opacity cursor-pointer"
-              >
-                <span className="material-symbols-outlined">add</span>
-                Add New Item
-              </button>
+              {!isKitchen && (
+                <button
+                  onClick={handleAdd}
+                  className="flex items-center gap-2 bg-primary text-on-primary px-6 py-3 rounded-lg font-bold shadow-sm hover:opacity-90 transition-opacity cursor-pointer"
+                >
+                  <span className="material-symbols-outlined">add</span>
+                  Add New Item
+                </button>
+              )}
             </div>
 
             <div className="md:hidden flex flex-col gap-4">
@@ -289,7 +296,7 @@ export default function MenuManagementPage() {
                           <th className="p-4 text-label-md text-on-surface-variant uppercase tracking-wider font-semibold">Category</th>
                           <th className="p-4 text-label-md text-on-surface-variant uppercase tracking-wider font-semibold">Price (KES)</th>
                           <th className="p-4 text-label-md text-on-surface-variant uppercase tracking-wider font-semibold text-center w-32">Status</th>
-                          <th className="p-4 text-label-md text-on-surface-variant uppercase tracking-wider font-semibold text-right w-24">Actions</th>
+                          {!isKitchen && <th className="p-4 text-label-md text-on-surface-variant uppercase tracking-wider font-semibold text-right w-24">Actions</th>}
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-outline-variant">
@@ -330,22 +337,24 @@ export default function MenuManagementPage() {
                                 )}
                               </div>
                             </td>
-                            <td className="p-4 text-right">
-                              <div className="flex justify-end gap-2">
-                                <button
-                                  onClick={() => handleEdit(item)}
-                                  className="p-2 text-outline hover:text-primary transition-colors rounded hover:bg-surface-container cursor-pointer"
-                                >
-                                  <span className="material-symbols-outlined text-[20px]">edit</span>
-                                </button>
-                                <button
-                                  onClick={() => handleDelete(item)}
-                                  className="p-2 text-outline hover:text-error transition-colors rounded hover:bg-error-container cursor-pointer"
-                                >
-                                  <span className="material-symbols-outlined text-[20px]">delete</span>
-                                </button>
-                              </div>
-                            </td>
+                            {!isKitchen && (
+                              <td className="p-4 text-right">
+                                <div className="flex justify-end gap-2">
+                                  <button
+                                    onClick={() => handleEdit(item)}
+                                    className="p-2 text-outline hover:text-primary transition-colors rounded hover:bg-surface-container cursor-pointer"
+                                  >
+                                    <span className="material-symbols-outlined text-[20px]">edit</span>
+                                  </button>
+                                  <button
+                                    onClick={() => handleDelete(item)}
+                                    className="p-2 text-outline hover:text-error transition-colors rounded hover:bg-error-container cursor-pointer"
+                                  >
+                                    <span className="material-symbols-outlined text-[20px]">delete</span>
+                                  </button>
+                                </div>
+                              </td>
+                            )}
                           </tr>
                         ))}
                       </tbody>
@@ -401,20 +410,22 @@ export default function MenuManagementPage() {
                             {item.isAvailable ? 'Available' : 'Sold Out'}
                           </span>
                         </div>
-                        <div className="flex gap-2">
-                          <button
-                            onClick={() => handleEdit(item)}
-                            className="w-8 h-8 rounded bg-surface-container-low text-on-surface-variant hover:text-primary hover:bg-surface-container flex items-center justify-center transition-colors cursor-pointer"
-                          >
-                            <span className="material-symbols-outlined text-[18px]">edit</span>
-                          </button>
-                          <button
-                            onClick={() => handleDelete(item)}
-                            className="w-8 h-8 rounded bg-surface-container-low text-on-surface-variant hover:text-secondary hover:bg-error-container flex items-center justify-center transition-colors cursor-pointer"
-                          >
-                            <span className="material-symbols-outlined text-[18px]">delete</span>
-                          </button>
-                        </div>
+                        {!isKitchen && (
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => handleEdit(item)}
+                              className="w-8 h-8 rounded bg-surface-container-low text-on-surface-variant hover:text-primary hover:bg-surface-container flex items-center justify-center transition-colors cursor-pointer"
+                            >
+                              <span className="material-symbols-outlined text-[18px]">edit</span>
+                            </button>
+                            <button
+                              onClick={() => handleDelete(item)}
+                              className="w-8 h-8 rounded bg-surface-container-low text-on-surface-variant hover:text-secondary hover:bg-error-container flex items-center justify-center transition-colors cursor-pointer"
+                            >
+                              <span className="material-symbols-outlined text-[18px]">delete</span>
+                            </button>
+                          </div>
+                        )}
                       </div>
                     </div>
                   ))}
@@ -425,24 +436,7 @@ export default function MenuManagementPage() {
         </div>
       </div>
 
-      <nav className="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-4 py-2 md:hidden bg-surface-container-lowest shadow-[0_-4px_12px_rgba(0,0,0,0.05)] rounded-t-xl">
-        <a className="flex flex-col items-center justify-center text-on-surface-variant px-4 py-1" href="#">
-          <span className="material-symbols-outlined">restaurant</span>
-          <span className="text-label-md mt-1">Menu</span>
-        </a>
-        <a className="flex flex-col items-center justify-center text-on-surface-variant px-4 py-1" href="#">
-          <span className="material-symbols-outlined">receipt_long</span>
-          <span className="text-label-md mt-1">Orders</span>
-        </a>
-        <a className="flex flex-col items-center justify-center text-on-surface-variant px-4 py-1" href="#">
-          <span className="material-symbols-outlined">account_balance_wallet</span>
-          <span className="text-label-md mt-1">Wallet</span>
-        </a>
-        <a className="flex flex-col items-center justify-center text-on-surface-variant px-4 py-1" href="#">
-          <span className="material-symbols-outlined">person</span>
-          <span className="text-label-md mt-1">Profile</span>
-        </a>
-      </nav>
+      <KitchenBottomNav />
 
       <AddMenuItemModal
         open={modalOpen}

@@ -22,6 +22,7 @@ import WalletPage from './pages/WalletPage'
 import ProtectedRoute from "./components/ProtectedRoute"
 import RootRedirect from "./components/RootRedirect"
 import StudentLayout from "./layouts/StudentLayout"
+import StudentProfilePage from "./pages/StudentProfilePage"
 
 
 // Set axios defaults
@@ -54,6 +55,7 @@ function App() {
                 <Route path="/checkout" element={<Checkout />} />
                 <Route path="/orders/:orderId/track" element={<OrderTracking />} />
                 <Route path="/wallet" element={<WalletPage />} />
+                <Route path="/profile" element={<StudentProfilePage />} />
               </Route>
             </Route>
 
@@ -69,7 +71,14 @@ function App() {
               <Route path="dashboard" element={<DashboardPage />} />
               <Route path="orders" element={<OrdersPage />} />
               <Route path="menu-management" element={<MenuManagementPage />} />
-              <Route path="categories" element={<CategoryManagement />} />
+              <Route
+                path="categories"
+                element={
+                  <ProtectedRoute allowedRoles={["admin"]}>
+                    <CategoryManagement />
+                  </ProtectedRoute>
+                }
+              />
               <Route path="settings" element={<SettingsPage />} />
             </Route>
 

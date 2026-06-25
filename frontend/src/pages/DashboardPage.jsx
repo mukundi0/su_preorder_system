@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import axios from 'axios'
 import Sidebar from '../components/Sidebar'
+import KitchenBottomNav from '../components/KitchenBottomNav'
 import { useAuth } from '../context/AuthContext'
 
 const STATUS_META = {
@@ -640,6 +641,7 @@ export default function DashboardPage() {
             </div>
           )}
         </div>
+        <KitchenBottomNav />
       </div>
     </div>
   )

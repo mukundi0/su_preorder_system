@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import Sidebar from '../components/Sidebar'
+import KitchenBottomNav from '../components/KitchenBottomNav'
 import TopNav from '../components/TopNav'
 import StatsDashboard from '../components/StatsDashboard'
 import CategoryTable from '../components/CategoryTable'
@@ -129,13 +130,15 @@ export default function CategoryManagement() {
 
   return (
     <div className="bg-background text-on-background overflow-x-hidden min-h-screen">
-      <Sidebar />
+      <div className="hidden md:block">
+        <Sidebar />
+      </div>
       <TopNav
         search={search}
         onSearchChange={handleSearchChange}
         onAddClick={handleAdd}
       />
-      <main className="ml-64 p-8 min-h-[calc(100vh-4rem)]">
+      <main className="md:ml-64 p-4 md:p-8 min-h-[calc(100vh-4rem)] pb-24 md:pb-8">
         <StatsDashboard
           totalCategories={stats.totalCategories}
           totalItems={stats.totalItems}
@@ -197,6 +200,7 @@ export default function CategoryManagement() {
         onSubmit={handleSubmit}
         editCategory={editCategory}
       />
+      <KitchenBottomNav />
     </div>
   )
 }

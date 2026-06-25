@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import axios from 'axios'
 import Sidebar from '../components/Sidebar'
+import KitchenBottomNav from '../components/KitchenBottomNav'
 import { useAuth } from '../context/AuthContext'
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
@@ -1018,6 +1019,7 @@ export default function SettingsPage() {
             {activeTab === 'issues'  && <IssuesTab />}
           </div>
         </div>
+        <KitchenBottomNav />
       </div>
     </div>
   )

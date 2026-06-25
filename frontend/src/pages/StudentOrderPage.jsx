@@ -1,5 +1,5 @@
 import axios from "axios"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { useNavigate } from 'react-router-dom'
 
 import HERO_IMAGE from '../assets/heroImage.png'
@@ -53,16 +53,19 @@ export default function StudentOrderPage() {
     return `KES ${(Number(value) || 0).toLocaleString()}`
   }
 
-  useEffect(() => {
-    const fetchMenuItems = async () => {
-      try {
-        const { data } = await axios.get('/menuitems')
-        if (!data.error) setMenuItems(data)
-      } catch (error) {
-        console.error('Failed to fetch menu items:', error)
-      }
+  const fetchMenuItems = async () => {
+    try {
+      const { data } = await axios.get('/menuitems')
+      if (!data.error) setMenuItems(data)
+    } catch (error) {
+      console.error('Failed to fetch menu items:', error)
     }
+  }
+
+  useEffect(() => {
     fetchMenuItems()
+    const interval = setInterval(fetchMenuItems, 30000)
+    return () => clearInterval(interval)
   }, [])
 
   useEffect(() => {
@@ -241,13 +244,18 @@ export default function StudentOrderPage() {
                 </div>
               ) : (
                 filteredMenuItems?.map((item) => (
-                  <div key={item._id} className="bg-surface-container-lowest border border-outline-variant rounded-xl overflow-hidden flex h-32 md:h-auto md:flex-col shadow-[0_4px_12px_rgba(0,0,0,0.02)] md:shadow-none hover:shadow-lg transition-all group">
-                    <div className="w-1/3 md:w-full h-full md:h-44 lg:h-48 bg-surface-container overflow-hidden">
+                  <div key={item._id} className={`bg-surface-container-lowest border border-outline-variant rounded-xl overflow-hidden flex h-32 md:h-auto md:flex-col shadow-[0_4px_12px_rgba(0,0,0,0.02)] md:shadow-none hover:shadow-lg transition-all group ${!item.isAvailable ? 'opacity-60' : ''}`}>
+                    <div className="w-1/3 md:w-full h-full md:h-44 lg:h-48 bg-surface-container overflow-hidden relative">
                       {item.imageUrl ? (
-                        <img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                        <img src={item.imageUrl} alt={item.name} className={`w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ${!item.isAvailable ? 'grayscale' : ''}`} />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center text-on-surface-variant">
                           <span className="material-symbols-outlined text-4xl">image</span>
+                        </div>
+                      )}
+                      {!item.isAvailable && (
+                        <div className="absolute inset-0 flex items-center justify-center bg-black/30">
+                          <span className="bg-surface text-on-surface text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-full">Sold Out</span>
                         </div>
                       )}
                     </div>
@@ -270,8 +278,12 @@ export default function StudentOrderPage() {
                           )}
                         </div>
                         <button
-                          onClick={() => handleAddClick(item)}
-                          className="w-8 h-8 md:w-10 md:h-10 bg-primary text-on-primary rounded-full md:rounded-lg flex items-center justify-center hover:bg-primary-container transition-colors shadow-sm cursor-pointer"
+                          onClick={() => item.isAvailable && handleAddClick(item)}
+                          disabled={!item.isAvailable}
+                          className={`w-8 h-8 md:w-10 md:h-10 rounded-full md:rounded-lg flex items-center justify-center transition-colors shadow-sm
+                            ${item.isAvailable
+                              ? 'bg-primary text-on-primary hover:bg-primary-container cursor-pointer'
+                              : 'bg-surface-container text-on-surface-variant cursor-not-allowed'}`}
                         >
                           <span className="material-symbols-outlined">add</span>
                         </button>
