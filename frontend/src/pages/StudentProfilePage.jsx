@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import axios from 'axios'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import { useCart } from '../context/CartContext'
 import StudentBottomNav from '../components/StudentBottomNav'
 
 function initials(name) {
@@ -93,6 +94,19 @@ export default function StudentProfilePage() {
 
   const activeOrder  = orders.find(o => ACTIVE_STATUSES.has(o.orderStatus))
   const recentOrders = orders.slice(0, 3)
+
+  const { addItemToCart, clearCart } = useCart()
+
+  const handleReorder = (order) => {
+    clearCart()
+    order.items.forEach(({ item, qty, servingSize }) => {
+      if (!item?._id) return
+      for (let i = 0; i < qty; i++) {
+        addItemToCart({ ...item, servingSize })
+      }
+    })
+    navigate('/student')
+  }
 
   // ── Name form ──────────────────────────────────────────────────────────────
   const [name, setName]             = useState(user?.name || '')
@@ -289,21 +303,28 @@ export default function StudentProfilePage() {
               {recentOrders.map(o => {
                 const m = STATUS_META[o.orderStatus] || { label: o.orderStatus, color: 'bg-surface-container text-on-surface-variant', dot: 'bg-gray-400' }
                 return (
-                  <button
-                    key={o._id}
-                    onClick={() => navigate(`/orders/${o._id}/track`)}
-                    className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-surface-container-low transition-colors cursor-pointer bg-transparent border-none text-left"
-                  >
+                  <div key={o._id} className="flex items-center gap-2 p-2 rounded-xl hover:bg-surface-container-low transition-colors">
                     <div className={`w-2 h-2 rounded-full shrink-0 ${m.dot}`} />
-                    <div className="flex-1 min-w-0">
+                    <button
+                      onClick={() => navigate(`/orders/${o._id}/track`)}
+                      className="flex-1 min-w-0 text-left bg-transparent border-none cursor-pointer"
+                    >
                       <p className="text-sm font-bold text-on-surface">{o.orderNumber}</p>
                       <p className="text-xs text-on-surface-variant">{formatOrderDate(o.createdAt)}</p>
-                    </div>
+                    </button>
                     <div className="flex flex-col items-end gap-1 shrink-0">
                       <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${m.color}`}>{m.label}</span>
                       <span className="text-xs font-semibold text-on-surface">KES {(o.totalAmt || 0).toLocaleString()}</span>
                     </div>
-                  </button>
+                    <button
+                      onClick={() => handleReorder(o)}
+                      className="shrink-0 flex items-center gap-0.5 text-[11px] font-bold text-primary bg-primary/10 hover:bg-primary/20 transition-colors px-2.5 py-1.5 rounded-lg cursor-pointer border-none"
+                      title="Reorder"
+                    >
+                      <span className="material-symbols-outlined text-[14px]">refresh</span>
+                      Reorder
+                    </button>
+                  </div>
                 )
               })}
             </div>
@@ -510,20 +531,25 @@ export default function StudentProfilePage() {
                 {recentOrders.map(o => {
                   const m = STATUS_META[o.orderStatus] || { label: o.orderStatus, color: 'bg-surface-container text-on-surface-variant', dot: 'bg-gray-400' }
                   return (
-                    <button
-                      key={o._id}
-                      onClick={() => navigate(`/orders/${o._id}/track`)}
-                      className="w-full flex items-center gap-4 py-3 hover:bg-surface-container-low transition-colors cursor-pointer bg-transparent border-none text-left first:pt-0 last:pb-0 px-2 rounded-lg"
-                    >
+                    <div key={o._id} className="flex items-center gap-4 py-3 first:pt-0 last:pb-0 px-2 rounded-lg hover:bg-surface-container-low transition-colors group">
                       <div className={`w-2.5 h-2.5 rounded-full shrink-0 ${m.dot}`} />
-                      <div className="flex-1 min-w-0">
+                      <button
+                        onClick={() => navigate(`/orders/${o._id}/track`)}
+                        className="flex-1 min-w-0 text-left bg-transparent border-none cursor-pointer"
+                      >
                         <p className="text-sm font-bold text-on-surface">{o.orderNumber}</p>
                         <p className="text-xs text-on-surface-variant mt-0.5">{formatOrderDate(o.createdAt)}</p>
-                      </div>
+                      </button>
                       <span className={`text-[11px] font-bold px-2.5 py-1 rounded-full ${m.color}`}>{m.label}</span>
                       <span className="text-sm font-bold text-on-surface shrink-0">KES {(o.totalAmt || 0).toLocaleString()}</span>
-                      <span className="material-symbols-outlined text-on-surface-variant text-[18px]">chevron_right</span>
-                    </button>
+                      <button
+                        onClick={() => handleReorder(o)}
+                        className="shrink-0 flex items-center gap-1 text-sm font-bold text-primary bg-primary/10 hover:bg-primary/20 transition-colors px-3 py-1.5 rounded-lg cursor-pointer border-none opacity-0 group-hover:opacity-100"
+                      >
+                        <span className="material-symbols-outlined text-[16px]">refresh</span>
+                        Reorder
+                      </button>
+                    </div>
                   )
                 })}
               </div>

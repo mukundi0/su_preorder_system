@@ -23,6 +23,8 @@ import ProtectedRoute from "./components/ProtectedRoute"
 import RootRedirect from "./components/RootRedirect"
 import StudentLayout from "./layouts/StudentLayout"
 import StudentProfilePage from "./pages/StudentProfilePage"
+import OrderHistoryPage from "./pages/OrderHistoryPage"
+import IssuesPage from "./pages/IssuesPage"
 
 
 // Set axios defaults
@@ -56,6 +58,7 @@ function App() {
                 <Route path="/orders/:orderId/track" element={<OrderTracking />} />
                 <Route path="/wallet" element={<WalletPage />} />
                 <Route path="/profile" element={<StudentProfilePage />} />
+                <Route path="/orders/history" element={<OrderHistoryPage />} />
               </Route>
             </Route>
 
@@ -80,6 +83,7 @@ function App() {
                 }
               />
               <Route path="settings" element={<SettingsPage />} />
+              <Route path="issues" element={<IssuesPage />} />
             </Route>
 
             <Route path="*" element={<Navigate to="/" replace />} />

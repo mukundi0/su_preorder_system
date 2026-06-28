@@ -1,4 +1,4 @@
-export default function Pagination({ page, totalPages, total, limit, onPageChange }) {
+export default function Pagination({ page, totalPages, total, limit, onPageChange, noun = 'items' }) {
   const pageSize = limit || (totalPages > 0 ? Math.ceil(total / totalPages) : 0)
   const startItem = total > 0 ? (page - 1) * pageSize + 1 : 0
   const endItem = Math.min(page * pageSize, total)
@@ -8,7 +8,7 @@ export default function Pagination({ page, totalPages, total, limit, onPageChang
       <p>
         Showing <span className="font-bold text-primary">{startItem}</span> to{' '}
         <span className="font-bold text-primary">{endItem}</span> of{' '}
-        <span className="font-bold text-primary">{total}</span> categories
+        <span className="font-bold text-primary">{total}</span> {noun}
       </p>
       <div className="flex gap-2">
         <button

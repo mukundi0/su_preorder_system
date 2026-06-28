@@ -17,6 +17,7 @@ const ADMIN_NAV = [
   { name: 'Orders',          icon: 'receipt_long',     path: '/admin/orders' },
   { name: 'Menu Management', icon: 'restaurant_menu',  path: '/admin/menu-management' },
   { name: 'Categories',      icon: 'category',         path: '/admin/categories' },
+  { name: 'Issues',          icon: 'report',           path: '/admin/issues' },
   { name: 'Settings',        icon: 'settings',         path: '/admin/settings' },
 ]
 
@@ -55,7 +56,7 @@ export default function Sidebar() {
       {isKitchen && (
         <div className="px-4 mb-4">
           <button
-            onClick={() => navigate('/admin/orders')}
+            onClick={() => navigate('/admin/orders?scan=1')}
             className="flex items-center justify-center gap-2 w-full bg-primary text-on-primary rounded-lg py-3 px-4 font-bold text-sm shadow-sm hover:opacity-90 transition-opacity cursor-pointer"
           >
             <span

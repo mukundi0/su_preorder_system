@@ -2,7 +2,7 @@ import { useNavigate, useLocation } from 'react-router-dom'
 
 const NAV_ITEMS = [
   { id: 'menu',    label: 'Menu',    icon: 'restaurant',             path: '/student' },
-  { id: 'orders',  label: 'Orders',  icon: 'receipt_long',           path: null },
+  { id: 'orders',  label: 'Orders',  icon: 'receipt_long',           path: '/orders/history' },
   { id: 'wallet',  label: 'Wallet',  icon: 'account_balance_wallet', path: '/wallet' },
   { id: 'profile', label: 'Profile', icon: 'person',                 path: '/profile' },
 ]

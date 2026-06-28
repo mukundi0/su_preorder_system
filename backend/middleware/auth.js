@@ -1,4 +1,5 @@
 import jwt from 'jsonwebtoken'
+import User from '../models/User.js'
 
 export function authenticate(req, res, next) {
     const { token } = req.cookies
@@ -16,14 +17,23 @@ export function authenticate(req, res, next) {
     }
 }
 
+// Re-fetches the user's current role from the DB so role changes take effect
+// without requiring the user to log out and back in.
 export function authorise(...roles) {
-    return (req, res, next) => {
+    return async (req, res, next) => {
         if (!req.user) {
             return res.status(401).json({ error: 'Unauthorized' })
         }
-        if (!roles.includes(req.user.role)) {
-            return res.status(403).json({ error: 'Forbidden' })
+        try {
+            const user = await User.findById(req.user.id).select('role')
+            if (!user) return res.status(401).json({ error: 'User not found' })
+            if (!roles.includes(user.role)) {
+                return res.status(403).json({ error: 'Forbidden' })
+            }
+            req.user.role = user.role
+            next()
+        } catch {
+            return res.status(500).json({ error: 'Server error' })
         }
-        next()
     }
 }

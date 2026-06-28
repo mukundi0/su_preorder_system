@@ -67,6 +67,12 @@ export default function OrderTracking() {
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false)
   const [lastUpdated, setLastUpdated] = useState(null)
 
+  const [showCollectedPopup, setShowCollectedPopup] = useState(false)
+
+  const [isCancelling, setIsCancelling]         = useState(false)
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false)
+  const [cancelResult, setCancelResult]         = useState(null)
+
   const [showReportModal, setShowReportModal]   = useState(false)
   const [issueCategory, setIssueCategory]       = useState('')
   const [issueDescription, setIssueDescription] = useState('')
@@ -129,6 +135,12 @@ export default function OrderTracking() {
     return () => clearInterval(interval)
   }, [orderId])
 
+  useEffect(() => {
+    if (order && ['collected', 'completed'].includes(order.orderStatus)) {
+      setShowCollectedPopup(true)
+    }
+  }, [order?.orderStatus])
+
   if (error) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center p-4">
@@ -160,12 +172,35 @@ export default function OrderTracking() {
   const progressPct  = getProgressPct(order.orderStatus)
   const statusLabel  = getStatusLabel(order.orderStatus)
   const statusIcon   = getStatusIcon(order.orderStatus)
-  const isReady      = order.orderStatus === 'ready for pickup' || order.orderStatus === 'ready'
-  const isCollected  = order.orderStatus === 'collected' || order.orderStatus === 'completed'
+  const isReady        = order.orderStatus === 'ready for pickup' || order.orderStatus === 'ready'
+  const isCollected    = order.orderStatus === 'collected' || order.orderStatus === 'completed'
+  const isCancellable  = !['collected', 'completed', 'cancelled'].includes(order.orderStatus)
 
-  const formattedTime = new Date(order.createdAt).toLocaleTimeString('en-KE', {
-    hour: '2-digit', minute: '2-digit',
-  })
+  const handleCancel = async () => {
+    setIsCancelling(true)
+    try {
+      const { data } = await axios.post(`/orders/${orderId}/cancel`)
+      setCancelResult({ refunded: data.paymentMethod === 'wallet' && data.paymentStatus === 'paid' })
+      setShowCancelConfirm(false)
+      setTimeout(() => navigate('/student'), 3000)
+    } catch (e) {
+      alert(e?.response?.data?.error || 'Failed to cancel order')
+    } finally {
+      setIsCancelling(false)
+    }
+  }
+
+  function formatOrderDate(dateStr) {
+    const d = new Date(dateStr)
+    const today = new Date(); today.setHours(0, 0, 0, 0)
+    const yesterday = new Date(today); yesterday.setDate(today.getDate() - 1)
+    const time = d.toLocaleTimeString('en-KE', { hour: '2-digit', minute: '2-digit' })
+    if (d >= today) return `Today, ${time}`
+    if (d >= yesterday) return `Yesterday, ${time}`
+    return `${d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}, ${time}`
+  }
+
+  const formattedOrderDate = formatOrderDate(order.createdAt)
 
   return (
     <div className="min-h-screen bg-background text-on-background font-body-lg antialiased pb-24">
@@ -177,7 +212,7 @@ export default function OrderTracking() {
             Order #{order.orderNumber || order._id.slice(-6).toUpperCase()}
           </h1>
           <span className="text-xs font-semibold tracking-widest uppercase text-on-surface-variant">
-            Today, {formattedTime}
+            {formattedOrderDate}
           </span>
         </section>
 
@@ -248,12 +283,6 @@ export default function OrderTracking() {
             })}
           </div>
 
-          {isCollected && (
-            <div className="flex items-center justify-center gap-2 py-1 rounded-lg bg-green-50 text-[#28A745] text-sm font-semibold">
-              <span className="material-symbols-outlined text-[18px]" style={{ fontVariationSettings: "'FILL' 1" }}>check_circle</span>
-              Order collected — enjoy your meal!
-            </div>
-          )}
         </section>
 
         {/* QR Code Card */}
@@ -306,6 +335,15 @@ export default function OrderTracking() {
 
         {/* Action Buttons */}
         <section className="flex flex-col gap-2 pb-4">
+          {isCancellable && (
+            <button
+              onClick={() => setShowCancelConfirm(true)}
+              className="w-full py-3 rounded-lg border-2 border-red-400 text-red-500 text-xs font-semibold tracking-widest uppercase flex justify-center items-center gap-2 active:bg-red-50 transition-colors bg-transparent cursor-pointer"
+            >
+              <span className="material-symbols-outlined text-lg">cancel</span>
+              Cancel Order
+            </button>
+          )}
           <button onClick={openReport} className="w-full py-3 rounded-lg border-2 border-primary text-primary text-xs font-semibold tracking-widest uppercase flex justify-center items-center gap-2 active:bg-primary/10 transition-colors bg-transparent cursor-pointer">
             <span className="material-symbols-outlined text-lg">support_agent</span>
             Report an Issue
@@ -323,6 +361,103 @@ export default function OrderTracking() {
       </main>
 
       <StudentBottomNav active="orders" />
+
+      {/* Order Collected Popup */}
+      {showCollectedPopup && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-6">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowCollectedPopup(false)} />
+          <div className="relative bg-surface rounded-3xl shadow-2xl w-full max-w-sm flex flex-col items-center text-center p-8 gap-5">
+
+            <div className="relative w-24 h-24">
+              <div className="absolute inset-0 rounded-full bg-green-100 animate-ping opacity-30" />
+              <div className="absolute inset-0 rounded-full bg-green-100 flex items-center justify-center">
+                <span className="material-symbols-outlined text-green-600" style={{ fontSize: 52, fontVariationSettings: "'FILL' 1" }}>check_circle</span>
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <h2 className="text-2xl font-extrabold text-on-surface">Enjoy your meal!</h2>
+              <p className="text-on-surface-variant text-sm">Order collected -   thanks for dining with us 🍽️</p>
+            </div>
+
+            <div className="bg-surface-container rounded-2xl px-6 py-4 w-full">
+              <p className="text-xs font-bold uppercase tracking-widest text-on-surface-variant">Order</p>
+              <p className="text-2xl font-extrabold text-primary">{order?.orderNumber}</p>
+            </div>
+
+            <button
+              onClick={() => { setShowCollectedPopup(false); navigate('/student') }}
+              className="w-full py-3.5 bg-primary text-on-primary rounded-2xl font-bold text-base cursor-pointer border-none hover:opacity-90 transition-opacity"
+            >
+              Done
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Order Cancelled Popup */}
+      {cancelResult && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-6">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+          <div className="relative bg-surface rounded-3xl shadow-2xl w-full max-w-sm flex flex-col items-center text-center p-8 gap-5">
+            <div className="w-20 h-20 rounded-full bg-red-100 flex items-center justify-center">
+              <span className="material-symbols-outlined text-red-500" style={{ fontSize: 48, fontVariationSettings: "'FILL' 1" }}>cancel</span>
+            </div>
+            <div className="space-y-1">
+              <h2 className="text-2xl font-extrabold text-on-surface">Order Cancelled</h2>
+              {cancelResult.refunded
+                ? <p className="text-sm text-on-surface-variant">KES {(Number(order.totalAmt) || 0).toLocaleString()} has been returned to your wallet.</p>
+                : <p className="text-sm text-on-surface-variant">Your order has been cancelled.</p>
+              }
+              <p className="text-xs text-on-surface-variant opacity-60 pt-1">Redirecting to menu…</p>
+            </div>
+            <button onClick={() => navigate('/student')} className="w-full py-3.5 bg-primary text-on-primary rounded-2xl font-bold text-base cursor-pointer border-none hover:opacity-90 transition-opacity">
+              Go to Menu
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Cancel Confirmation Modal */}
+      {showCancelConfirm && (
+        <div className="fixed inset-0 z-[200] flex flex-col justify-end md:justify-center md:items-center">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => !isCancelling && setShowCancelConfirm(false)} />
+          <div className="relative w-full md:max-w-sm bg-surface rounded-t-2xl md:rounded-2xl p-6 flex flex-col gap-4">
+            <div className="w-12 h-1 bg-outline-variant rounded-full mx-auto mb-1 md:hidden" />
+            <div className="flex flex-col items-center text-center gap-2">
+              <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center">
+                <span className="material-symbols-outlined text-red-500 text-2xl">cancel</span>
+              </div>
+              <h3 className="font-bold text-on-surface text-lg">Cancel this order?</h3>
+              <p className="text-sm text-on-surface-variant">
+                {order.paymentMethod === 'wallet'
+                  ? 'Your payment will be refunded to your wallet immediately.'
+                  : 'M-Pesa payments are not auto-refunded. Contact support if you need a refund.'}
+              </p>
+              <p className="text-xs text-on-surface-variant opacity-70">You can cancel any time before collecting your order.</p>
+            </div>
+            <div className="flex gap-3 mt-1">
+              <button
+                onClick={() => setShowCancelConfirm(false)}
+                disabled={isCancelling}
+                className="flex-1 py-3 rounded-xl border-2 border-outline-variant text-on-surface font-bold text-sm cursor-pointer bg-transparent disabled:opacity-50"
+              >
+                Keep Order
+              </button>
+              <button
+                onClick={handleCancel}
+                disabled={isCancelling}
+                className="flex-1 py-3 rounded-xl bg-red-500 text-white font-bold text-sm cursor-pointer border-none disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {isCancelling
+                  ? <span className="material-symbols-outlined animate-spin text-[16px]">refresh</span>
+                  : null}
+                Yes, Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Report an Issue Modal */}
       {showReportModal && (
