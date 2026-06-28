@@ -7,6 +7,16 @@ import { useCart } from "../context/CartContext"
 import { useAuth } from "../context/AuthContext"
 import StudentBottomNav from "../components/StudentBottomNav"
 
+
+const TAG_ICONS = {
+  'vegan':         '🌱',
+  'vegetarian':    '🥗',
+  'halal':         '✓ Halal',
+  'gluten-free':   'GF',
+  'spicy':         '🌶️',
+  'contains-nuts': '🥜',
+}
+
 export default function StudentOrderPage() {
   const { user } = useAuth()
 
@@ -20,6 +30,15 @@ export default function StudentOrderPage() {
   const [isMobileCartOpen, setIsMobileCartOpen] = useState(false)
   const [pendingItem, setPendingItem] = useState(null)
   const [selectedSize, setSelectedSize] = useState('full')
+
+  const [usualItems, setUsualItems] = useState([])
+
+  const [ratingOrder, setRatingOrder]           = useState(null)
+  const [ratings, setRatings]                   = useState({})
+  const [submittedRatings, setSubmittedRatings] = useState({})
+  const [ratingSubmitting, setRatingSubmitting] = useState(false)
+  const [ratingDismissed, setRatingDismissed]   = useState(false)
+  const [ratingToast, setRatingToast]           = useState(false)
 
   const {
     cart,
@@ -69,6 +88,58 @@ export default function StudentOrderPage() {
   }, [])
 
   useEffect(() => {
+    if (!user?._id || menuItems.length === 0) return
+    axios.get('/orders')
+      .then(({ data }) => {
+        const mine = data.filter(o => o.user?._id === user._id || o.user === user._id)
+
+        // Count total qty ordered per menu item across all past orders
+        const freq = {}
+        mine.forEach(order => {
+          order.items?.forEach(({ item, qty }) => {
+            if (!item?._id) return
+            const id = String(item._id)
+            freq[id] = (freq[id] || 0) + qty
+          })
+        })
+
+        // Sort by frequency, cross-reference live menu for current availability + price
+        const top = Object.entries(freq)
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 6)
+          .map(([id]) => menuItems.find(m => String(m._id) === id))
+          .filter(Boolean)
+
+        setUsualItems(top)
+      })
+      .catch(() => {})
+  }, [user?._id, menuItems])
+
+  useEffect(() => {
+    if (!user?._id) return
+    axios.get('/orders')
+      .then(async ({ data }) => {
+        const mine = data.filter(o => o.user?._id === user._id || o.user === user._id)
+        const last = mine
+          .filter(o => ['collected', 'completed'].includes(o.orderStatus))
+          .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))[0]
+        if (!last) return
+        const { data: existingRatings } = await axios.get(`/ratings/order/${last._id}`)
+        const ratedMap = {}
+        existingRatings.forEach(r => { ratedMap[r.menuItem] = r.stars })
+        const hasUnrated = last.items?.some(e => {
+          const id = String(e.item?._id || e.item)
+          return !ratedMap[id]
+        })
+        if (hasUnrated) {
+          setRatingOrder(last)
+          setSubmittedRatings(ratedMap)
+        }
+      })
+      .catch(() => {})
+  }, [user?._id])
+
+  useEffect(() => {
     const fetchCategories = async () => {
       try {
         const { data } = await axios.get('/categories')
@@ -107,11 +178,13 @@ export default function StudentOrderPage() {
   }
 
 
+  const featuredItems = menuItems.filter(i => i.isFeatured && i.isAvailable)
+
   const filteredMenuItems = menuItems.filter((item) => {
     const matchesCategory =
-      selectedCategory === 'All items' || 
+      selectedCategory === 'All items' ||
       (item.category && String(item.category.name).toLowerCase() === selectedCategory.toLowerCase())
-    const matchesSearch = item.name.toLowerCase().includes(searchInput.toLowerCase())
+    const matchesSearch  = item.name.toLowerCase().includes(searchInput.toLowerCase())
     return matchesCategory && matchesSearch
   })
 
@@ -191,17 +264,183 @@ export default function StudentOrderPage() {
             <p className="text-base text-on-surface-variant mt-1">What are you craving today?</p>
           </section>
 
+          {ratingOrder && !ratingDismissed && (
+            <section className="bg-surface-container-lowest border border-outline-variant rounded-xl p-4 flex flex-col gap-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="text-xl">⭐</span>
+                  <div>
+                    <p className="font-bold text-on-surface text-sm">How was your last meal?</p>
+                    <p className="text-xs text-on-surface-variant">Order #{ratingOrder.orderNumber}</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setRatingDismissed(true)}
+                  className="w-7 h-7 flex items-center justify-center rounded-full text-on-surface-variant hover:bg-surface-container transition-colors border-none bg-transparent cursor-pointer"
+                >
+                  <span className="material-symbols-outlined text-[18px]">close</span>
+                </button>
+              </div>
+
+              <div className="flex flex-col gap-3">
+                {ratingOrder.items?.map((entry, idx) => {
+                  const id = String(entry.item?._id || entry.item)
+                  const name = entry.item?.name || 'Item'
+                  const already = submittedRatings[id]
+                  return (
+                    <div key={idx} className="flex items-center justify-between gap-3">
+                      <span className="text-sm text-on-surface flex-1 line-clamp-1">{name}</span>
+                      {already ? (
+                        <div className="flex gap-0.5">
+                          {[1,2,3,4,5].map(n => (
+                            <span key={n} style={{ color: n <= already ? '#F59E0B' : '#D1D5DB', fontSize: 20 }}>★</span>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="flex gap-0.5">
+                          {[1,2,3,4,5].map(n => (
+                            <button
+                              key={n}
+                              type="button"
+                              onClick={() => setRatings(prev => ({ ...prev, [id]: n }))}
+                              className="text-2xl leading-none bg-transparent border-none cursor-pointer p-0.5 transition-transform hover:scale-110"
+                              style={{ color: n <= (ratings[id] || 0) ? '#F59E0B' : '#D1D5DB' }}
+                            >★</button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+
+              {ratingOrder.items?.some(e => !submittedRatings[String(e.item?._id || e.item)]) && (
+                <button
+                  onClick={async () => {
+                    setRatingSubmitting(true)
+                    const toSubmit = ratingOrder.items.filter(e => {
+                      const id = String(e.item?._id || e.item)
+                      return !submittedRatings[id] && ratings[id]
+                    })
+                    for (const entry of toSubmit) {
+                      const id = String(entry.item?._id || entry.item)
+                      try {
+                        await axios.post('/ratings', { orderId: ratingOrder._id, menuItemId: id, stars: ratings[id] })
+                        setSubmittedRatings(prev => ({ ...prev, [id]: ratings[id] }))
+                      } catch {}
+                    }
+                    setRatingSubmitting(false)
+                    setRatingDismissed(true)
+                    setRatingToast(true)
+                    setTimeout(() => setRatingToast(false), 3000)
+                  }}
+                  disabled={ratingSubmitting || !ratingOrder.items?.some(e => ratings[String(e.item?._id || e.item)] && !submittedRatings[String(e.item?._id || e.item)])}
+                  className="w-full py-2.5 bg-primary text-on-primary rounded-xl font-bold text-sm transition-colors cursor-pointer border-none disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {ratingSubmitting ? 'Submitting…' : 'Submit Ratings'}
+                </button>
+              )}
+            </section>
+          )}
+
+          {usualItems.length > 0 && (
+            <section className="space-y-3">
+              <h2 className="text-base font-bold text-on-surface flex items-center gap-2">
+                <span className="material-symbols-outlined text-[20px] text-primary" style={{ fontVariationSettings: "'FILL' 1" }}>history</span>
+                Order Again
+              </h2>
+              <div className="flex gap-3 overflow-x-auto no-scrollbar pb-1">
+                {usualItems.map(item => (
+                  <div
+                    key={item._id}
+                    className={`flex-shrink-0 w-36 bg-surface-container-lowest border border-outline-variant rounded-xl overflow-hidden shadow-sm ${!item.isAvailable ? 'opacity-60' : ''}`}
+                  >
+                    <div className="h-20 bg-surface-container relative overflow-hidden">
+                      {item.imageUrl ? (
+                        <img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-on-surface-variant">
+                          <span className="material-symbols-outlined text-3xl">restaurant</span>
+                        </div>
+                      )}
+                      {!item.isAvailable && (
+                        <div className="absolute inset-0 flex items-center justify-center bg-black/30">
+                          <span className="text-white text-[9px] font-bold uppercase tracking-wider bg-black/50 px-2 py-0.5 rounded-full">Sold Out</span>
+                        </div>
+                      )}
+                    </div>
+                    <div className="p-2.5">
+                      <p className="text-xs font-bold text-on-surface line-clamp-1">{item.name}</p>
+                      <p className="text-[11px] text-primary font-semibold mt-0.5">{formatCurrency(item.fullPrice)}</p>
+                      <button
+                        onClick={() => item.isAvailable && handleAddClick(item)}
+                        disabled={!item.isAvailable}
+                        className="mt-2 w-full py-1.5 bg-primary text-on-primary rounded-lg text-[11px] font-bold hover:opacity-90 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer border-none"
+                      >
+                        Add to Order
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
+
+          {featuredItems.length > 0 && (
+            <section className="space-y-3">
+              <h2 className="text-base font-bold text-on-surface flex items-center gap-2">
+                <span className="material-symbols-outlined text-[20px] text-secondary" style={{ fontVariationSettings: "'FILL' 1" }}>star</span>
+                Today's Specials
+              </h2>
+              <div className="flex gap-3 overflow-x-auto no-scrollbar pb-1">
+                {featuredItems.map(item => (
+                  <div
+                    key={item._id}
+                    className="flex-shrink-0 w-44 bg-secondary-container border border-outline-variant rounded-xl overflow-hidden shadow-sm relative"
+                  >
+                    <div className="absolute top-2 left-2 z-10 bg-secondary text-on-secondary text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">
+                      Special
+                    </div>
+                    <div className="h-24 bg-surface-container overflow-hidden">
+                      {item.imageUrl ? (
+                        <img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-on-surface-variant">
+                          <span className="material-symbols-outlined text-3xl">restaurant</span>
+                        </div>
+                      )}
+                    </div>
+                    <div className="p-2.5">
+                      <p className="text-xs font-bold text-on-secondary-container line-clamp-1">{item.name}</p>
+                      {item.specialNote && (
+                        <p className="text-[10px] text-on-secondary-container/70 italic mt-0.5 line-clamp-1">{item.specialNote}</p>
+                      )}
+                      <p className="text-[11px] text-secondary font-semibold mt-0.5">{formatCurrency(item.fullPrice)}</p>
+                      <button
+                        onClick={() => handleAddClick(item)}
+                        className="mt-2 w-full py-1.5 bg-secondary text-on-secondary rounded-lg text-[11px] font-bold hover:opacity-90 transition-opacity cursor-pointer border-none"
+                      >
+                        Add to Order
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
+
           <section className="space-y-4 md:space-y-6">
 
             {/* Mobile search bar visible on smaller screens */}
             <div className="relative block lg:hidden">
-            <input
+              <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant">search</span>
+              <input
                 value={searchInput}
-                onChange={(e) => setSearchInput(e.target.value)} 
+                onChange={(e) => setSearchInput(e.target.value)}
                 className="w-full pl-10 pr-4 py-3 rounded-full bg-surface-container border-none outline-none text-sm focus:ring-2 focus:ring-primary"
                 placeholder="Search..."
                 type="text"
-            />
+              />
             </div>
 
             <div className="relative hidden lg:block">
@@ -236,6 +475,7 @@ export default function StudentOrderPage() {
               ))}
             </div>
 
+
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 md:gap-6">
               {filteredMenuItems?.length === 0 ? (
                 <div className="col-span-full text-center py-12 text-on-surface-variant">
@@ -266,7 +506,27 @@ export default function StudentOrderPage() {
                         <p className="text-on-surface-variant text-xs md:text-sm line-clamp-2 mt-1">
                           {item.description || 'Freshly prepared by Strathmore Dining.'}
                         </p>
+                        {item.ratingCount > 0 && (
+                          <div className="flex items-center gap-1 mt-1">
+                            <span style={{ color: '#F59E0B', fontSize: 13 }}>★</span>
+                            <span className="text-xs font-semibold text-on-surface">{item.avgRating.toFixed(1)}</span>
+                            <span className="text-[10px] text-on-surface-variant">({item.ratingCount})</span>
+                          </div>
+                        )}
                       </div>
+
+                      {item.tags?.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mt-1.5">
+                          {item.tags.slice(0, 3).map(tag => (
+                            <span
+                              key={tag}
+                              className="text-[9px] md:text-[10px] font-semibold bg-surface-container text-on-surface-variant px-1.5 py-0.5 rounded-full"
+                            >
+                              {TAG_ICONS[tag] ?? tag}
+                            </span>
+                          ))}
+                        </div>
+                      )}
 
                       <div className="flex justify-between items-end mt-2 md:mt-4">
                         <div>
@@ -275,6 +535,9 @@ export default function StudentOrderPage() {
                             <span className="block text-xs text-on-surface-variant mt-0.5">
                               Half: {formatCurrency(item.halfPrice)}
                             </span>
+                          )}
+                          {item.prepTime > 0 && (
+                            <span className="block text-xs text-outline mt-0.5">~{item.prepTime} min</span>
                           )}
                         </div>
                         <button
@@ -498,6 +761,13 @@ export default function StudentOrderPage() {
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {ratingToast && (
+        <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[150] bg-on-surface text-surface text-sm font-semibold px-5 py-3 rounded-full shadow-lg flex items-center gap-2 animate-in fade-in slide-in-from-bottom-2 duration-300">
+          <span className="material-symbols-outlined text-[18px]" style={{ color: '#F59E0B', fontVariationSettings: "'FILL' 1" }}>star</span>
+          Thanks for your feedback!
         </div>
       )}
 
