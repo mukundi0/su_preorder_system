@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import axios from 'axios'
 import SU_LOGO from '../assets/sulogo.png'
@@ -34,6 +34,8 @@ export default function WalletPage() {
   const [awaitingMpesa, setAwaitingMpesa] = useState(false)
   const [topUpMsg, setTopUpMsg]         = useState({ type: '', text: '' })
 
+  const pollingRef = useRef(null)
+
   const fetchWallet = useCallback(async () => {
     try {
       const { data } = await axios.get('/wallet')
@@ -46,30 +48,45 @@ export default function WalletPage() {
     }
   }, [])
 
+  const startBackgroundRefresh = useCallback(() => {
+    if (pollingRef.current) clearInterval(pollingRef.current)
+    pollingRef.current = setInterval(fetchWallet, 15000)
+  }, [fetchWallet])
+
+  const stopBackgroundRefresh = useCallback(() => {
+    if (pollingRef.current) {
+      clearInterval(pollingRef.current)
+      pollingRef.current = null
+    }
+  }, [])
+
   useEffect(() => {
     fetchWallet()
-    const interval = setInterval(fetchWallet, 15000)
-    return () => clearInterval(interval)
-  }, [fetchWallet])
+    startBackgroundRefresh()
+    return () => stopBackgroundRefresh()
+  }, [fetchWallet, startBackgroundRefresh, stopBackgroundRefresh])
 
   const activeAmount = customAmount ? Number(customAmount) : selectedPreset
 
-  // Poll the wallet balance every 3 s until it increases (callback has credited it)
+  // Poll the wallet balance every 3 s until M-Pesa callback has credited it
   function pollUntilCredited(expectedIncrease) {
+    stopBackgroundRefresh()
     setAwaitingMpesa(true)
     setTopUpMsg({ type: 'info', text: 'Check your phone — enter your M-Pesa PIN to complete the top-up.' })
 
     const snapshotBalance = balance
-    const interval = setInterval(async () => {
+    const mpesaInterval = setInterval(async () => {
       try {
         const { data } = await axios.get('/wallet')
         if (data.balance > snapshotBalance) {
-          clearInterval(interval)
+          clearInterval(mpesaInterval)
+          clearTimeout(timeoutId)
           setBalance(data.balance)
           setTransactions(data.transactions)
           setAwaitingMpesa(false)
           setTopUpMsg({ type: 'success', text: `${formatCurrency(expectedIncrease)} added to your wallet!` })
           setCustomAmount('')
+          startBackgroundRefresh()
         }
       } catch {
         // network blip — keep polling
@@ -77,14 +94,15 @@ export default function WalletPage() {
     }, 3000)
 
     // Give up after 2 minutes
-    setTimeout(() => {
-      clearInterval(interval)
+    const timeoutId = setTimeout(() => {
+      clearInterval(mpesaInterval)
       setAwaitingMpesa(false)
       setTopUpMsg((prev) =>
         prev.type !== 'success'
           ? { type: 'error', text: 'Payment timed out. Check if the top-up went through before retrying.' }
           : prev
       )
+      startBackgroundRefresh()
     }, 120_000)
   }
 

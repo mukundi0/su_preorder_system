@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import { useCart } from '../context/CartContext'
 import { useAuth } from '../context/AuthContext'
 import StudentBottomNav from '../components/StudentBottomNav'
+import SU_LOGO from '../assets/sulogo.png'
 
 
 function formatCurrency(value) {
@@ -187,7 +188,7 @@ export default function Checkout() {
             </span>
           </button>
           <img
-            src="https://lh3.googleusercontent.com/aida-public/AB6AXuD2aevf5wWlfiirx24PRQ7bs5VGXrJRa27oBtx2rbJ0gubmAmeSGRuVWsmjC6XO5SoshDww0uJ5bOhkvjisTwqfPtYsz0fzRId2SW6BwaUJT_imfvHlxokH7_GY6DnQXzmkW0ISPPAvg9lVzUfXyWL-nRB63v4V2lrpkyePqjh2Q7dLjhv0wfhmy_jF_PDB_meE6StPZCfJve4bIrEJZxOnNrv-n6GrfZ2KWBXlt77PemkbbJ4ODTxDvayVwfrUOgcgRrRTcXaAw-jQ"
+            src={SU_LOGO}
             alt="Strathmore University Logo"
             className="h-8 w-auto object-contain mr-2"
           />

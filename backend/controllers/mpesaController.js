@@ -2,6 +2,7 @@ import Order from '../models/Order.js'
 import User from '../models/User.js'
 import WalletTransaction from '../models/WalletTransaction.js'
 import generateQRCode from '../utils/generateQR.js'
+import { sendOrderReady } from '../utils/sendEmail.js'
 import { initiateSTKPush, initiateSandboxReversal } from '../services/mpesaService.js'
 
 // POST /api/mpesa/pay-order
@@ -132,9 +133,17 @@ export async function mpesaCallback(req, res) {
 
       //  Case 1: Order payment 
       console.log(`Locating pending order with CheckoutRequestID: "${CheckoutRequestID}"...`)
-      const order = await Order.findOne({ mpesaCheckoutRequestId: CheckoutRequestID })
+      const order = await Order.findOne({ mpesaCheckoutRequestId: CheckoutRequestID }).populate('items.item')
       if (order && order.paymentStatus === 'pending') {
         console.log(`Order Found. Current Payment Status: ${order.paymentStatus}`)
+
+        // Calculate max prep time across all items in this order
+        let maxPrepTime = 0
+        order.items.forEach(orderItem => {
+          const pt = orderItem.item?.prepTime || 0
+          if (pt > maxPrepTime) maxPrepTime = pt
+        })
+
         // Now that payment is confirmed, generate the QR code and activate the order
         const qrPayload = JSON.stringify({
           orderId:     order._id.toString(),
@@ -144,13 +153,32 @@ export async function mpesaCallback(req, res) {
         })
         const qrDataUrl = await generateQRCode(qrPayload)
 
-        order.paymentStatus         = 'paid'
-        order.orderStatus           = 'received'
-        order.mpesaReceiptNumber    = mpesaReceiptNumber
-        order.qrCode                = qrDataUrl
-        order.qrPin                 = order.orderNumber?.split('-')[1] ?? ''
+        order.paymentStatus      = 'paid'
+        order.mpesaReceiptNumber = mpesaReceiptNumber
+        order.qrCode             = qrDataUrl
+        order.qrPin              = order.orderNumber?.split('-')[1] ?? ''
+
+        if (maxPrepTime === 0) {
+          order.orderStatus = 'ready for pickup'
+        } else {
+          order.orderStatus = 'preparing'
+          order.readyAt     = new Date(Date.now() + maxPrepTime * 60000)
+        }
         await order.save()
         console.log(`Order ${order.orderNumber} updated to PAID.`)
+
+        // Only email when order is immediately ready (pre-prepared items, no wait needed)
+        if (maxPrepTime === 0) {
+            const populatedUser = await User.findById(order.user).select('name email')
+            if (populatedUser?.email) {
+                sendOrderReady({
+                    to:            populatedUser.email,
+                    name:          populatedUser.name,
+                    orderNumber:   order.orderNumber,
+                    pickupCounter: order.pickupCounter,
+                }).catch(err => console.error('Email error:', err))
+            }
+        }
 
         await WalletTransaction.create({
           user:        order.user,

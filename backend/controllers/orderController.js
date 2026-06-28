@@ -3,6 +3,7 @@ import Order from "../models/Order.js"
 import User from "../models/User.js"
 import WalletTransaction from "../models/WalletTransaction.js"
 import generateQRCode from "../utils/generateQR.js"
+import { sendOrderReady } from "../utils/sendEmail.js"
 import { v4 as uuidv4 } from "uuid"
 
 export async function getAllOrders(req, res) {
@@ -57,8 +58,9 @@ export async function createOrder(req, res) {
             })
         }
 
-        // Calculate total amount
+        // Calculate total amount and max prep time
         let totalAmt = 0;
+        let maxPrepTime = 0;
 
         for (const orderItem of items) {
             const menuItem = await MenuItem.findById(orderItem.item)
@@ -85,6 +87,10 @@ export async function createOrder(req, res) {
 
             // Add to running total
             totalAmt += itemPrice * orderItem.qty
+
+            // Track longest prep time across all items
+            const pt = menuItem.prepTime || 0
+            if (pt > maxPrepTime) maxPrepTime = pt
         }
         
         // Validate wallet balance before creating order
@@ -102,10 +108,25 @@ export async function createOrder(req, res) {
 
         // Wallet: deduct immediately, activate order, generate QR
         // M-Pesa: create order in 'pending' state — callback activates it after payment
-        let initialStatus  = method === 'wallet' ? 'received' : 'pending'
         let paymentStatus  = method === 'wallet' ? 'paid'     : 'pending'
         let qrDataUrl      = null
         let qrPin          = null
+
+        // Determine initial order status based on prep time
+        // M-Pesa orders start pending until payment callback
+        // Wallet orders skip straight to preparing or ready based on prep time
+        let initialStatus
+        let readyAt = null
+        if (method === 'wallet') {
+            if (maxPrepTime === 0) {
+                initialStatus = 'ready for pickup'
+            } else {
+                initialStatus = 'preparing'
+                readyAt = new Date(Date.now() + maxPrepTime * 60000)
+            }
+        } else {
+            initialStatus = 'pending'
+        }
 
         if (method === 'wallet') {
             const qrPayload = JSON.stringify({
@@ -127,6 +148,7 @@ export async function createOrder(req, res) {
             paymentStatus,
             orderNumber,
             orderStatus:    initialStatus,
+            ...(readyAt ? { readyAt } : {}),
             ...(qrDataUrl ? { qrCode: qrDataUrl, qrPin } : {}),
         })
 
@@ -157,6 +179,16 @@ export async function createOrder(req, res) {
                 { path: 'user'},
                 { path: 'items.item' }
             ])
+
+        // Only email when order is immediately ready (pre-prepared items, no wait needed)
+        if (method === 'wallet' && maxPrepTime === 0 && populatedOrder.user?.email) {
+            sendOrderReady({
+                to:            populatedOrder.user.email,
+                name:          populatedOrder.user.name,
+                orderNumber,
+                pickupCounter: populatedOrder.pickupCounter,
+            }).catch(err => console.error('Email error:', err))
+        }
 
         return res.status(201).json(populatedOrder)
     } catch (error) {
@@ -251,6 +283,35 @@ export async function updateOrder(req, res) {
     }
 }
 
+// Background job: advance preparing orders whose readyAt time has passed
+export async function autoAdvanceOrders() {
+    try {
+        const ordersToAdvance = await Order.find({
+            orderStatus: 'preparing',
+            readyAt: { $lte: new Date() }
+        }).populate('user')
+
+        if (ordersToAdvance.length === 0) return
+
+        const ids = ordersToAdvance.map(o => o._id)
+        await Order.updateMany({ _id: { $in: ids } }, { $set: { orderStatus: 'ready for pickup' } })
+        console.log(`Auto-advanced ${ordersToAdvance.length} order(s) to ready for pickup`)
+
+        // Send ready-for-collection emails (fire-and-forget)
+        ordersToAdvance.forEach(order => {
+            if (!order.user?.email) return
+            sendOrderReady({
+                to:            order.user.email,
+                name:          order.user.name,
+                orderNumber:   order.orderNumber,
+                pickupCounter: order.pickupCounter,
+            }).catch(err => console.error('Email error:', err))
+        })
+    } catch (error) {
+        console.error('autoAdvanceOrders error:', error)
+    }
+}
+
 // Kitchen staff / admin: advance order through the workflow
 export async function updateOrderStatus(req, res) {
     try {
@@ -292,6 +353,44 @@ export async function deleteOrder(req, res) {
     } catch (error) {
         console.error("Error in deleteOrder controller:", error)
         res.status(500).json({ error: "Server error" })
+    }
+}
+
+// Student: cancel their own order (only while pending/received)
+export async function cancelOrder(req, res) {
+    try {
+        const order = await Order.findById(req.params.id).populate('user')
+        if (!order) return res.status(404).json({ error: 'Order not found' })
+
+        if (String(order.user._id) !== String(req.user.id)) {
+            return res.status(403).json({ error: 'Forbidden' })
+        }
+
+        const notCancellable = ['collected', 'completed', 'cancelled']
+        if (notCancellable.includes(order.orderStatus)) {
+            return res.status(400).json({ error: 'Order has already been collected and cannot be cancelled' })
+        }
+
+        order.orderStatus = 'cancelled'
+        await order.save()
+
+        // Refund wallet payments
+        if (order.paymentMethod === 'wallet' && order.paymentStatus === 'paid') {
+            await User.findByIdAndUpdate(order.user._id, { $inc: { walletBalance: order.totalAmt } })
+            await WalletTransaction.create({
+                user:        order.user._id,
+                type:        'credit',
+                amount:      order.totalAmt,
+                description: `Refund - Cancelled Order ${order.orderNumber}`,
+                reference:   order.orderNumber,
+                status:      'completed',
+            })
+        }
+
+        res.json({ success: true, paymentMethod: order.paymentMethod, paymentStatus: order.paymentStatus })
+    } catch (error) {
+        console.error('Error in cancelOrder:', error)
+        res.status(500).json({ error: 'Server error' })
     }
 }
 

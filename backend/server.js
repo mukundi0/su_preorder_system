@@ -17,6 +17,8 @@ import walletRoutes from './routes/walletRoutes.js'
 import mpesaRoutes from './routes/mpesaRoutes.js'
 import issueRoutes from './routes/issueRoutes.js'
 import userRoutes from './routes/userRoutes.js'
+import ratingRoutes from './routes/ratingRoutes.js'
+import { autoAdvanceOrders } from './controllers/orderController.js'
 
 
 dotenv.config()
@@ -65,10 +67,15 @@ app.use('/api/issues', issueRoutes)
 // Users
 app.use('/api/users', userRoutes)
 
+// Ratings
+app.use('/api/ratings', ratingRoutes)
+
 
 const PORT = process.env.PORT || 8000
 connectDB().then(() => {
     app.listen(PORT, () => {
         console.log(`Listening on port ${PORT}`)
+        // Auto-advance preparing orders to ready for pickup when their timer expires
+        setInterval(autoAdvanceOrders, 30000)
     })
 })
