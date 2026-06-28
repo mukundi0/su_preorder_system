@@ -189,6 +189,7 @@ export default function CategoryManagement() {
               total={pagination.total}
               limit={pagination.limit}
               onPageChange={handlePageChange}
+              noun="categories"
             />
           )}
         </div>

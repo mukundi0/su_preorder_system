@@ -1,5 +1,6 @@
 import Category from '../models/Category.js'
 import MenuItem from '../models/MenuItem.js'
+import Order from '../models/Order.js'
 
 export async function getAllCategories(req, res) {
     try {
@@ -141,6 +142,96 @@ export async function deleteCategory(req, res) {
     }
 }
 
+
+export async function getDemandForecast(req, res) {
+    try {
+        const now        = new Date()
+        const todayDow   = now.getDay()
+        const todayStart = new Date(now); todayStart.setHours(0, 0, 0, 0)
+        // Look back 14 days so even a fresh demo with 1-2 days of data works
+        const lookbackStart = new Date(todayStart); lookbackStart.setDate(lookbackStart.getDate() - 14)
+
+        const [historicalOrders, todayOrders] = await Promise.all([
+            Order.find({
+                createdAt:     { $gte: lookbackStart, $lt: todayStart },
+                orderStatus:   { $ne: 'cancelled' },
+            }).populate('items.item'),
+            Order.find({
+                createdAt:     { $gte: todayStart },
+                orderStatus:   { $ne: 'cancelled' },
+            }).populate('items.item'),
+        ])
+
+        // Prep guide: group all historical orders by date (any weekday) =
+        const byDate = {}
+        historicalOrders.forEach(order => {
+            const dateStr = new Date(order.createdAt).toISOString().split('T')[0]
+            if (!byDate[dateStr]) byDate[dateStr] = {}
+            order.items?.forEach(entry => {
+                const name = entry.item?.name || 'Unknown'
+                byDate[dateStr][name] = (byDate[dateStr][name] || 0) + (entry.qty || 1)
+            })
+        })
+
+        // Last 7 days that had any orders
+        const recentDates = Object.keys(byDate).sort().reverse().slice(0, 7)
+
+        const todayItemQty = {}
+        todayOrders.forEach(order => {
+            order.items?.forEach(entry => {
+                const name = entry.item?.name || 'Unknown'
+                todayItemQty[name] = (todayItemQty[name] || 0) + (entry.qty || 1)
+            })
+        })
+
+        const allItems = new Set()
+        recentDates.forEach(d => Object.keys(byDate[d]).forEach(n => allItems.add(n)))
+
+        const prepGuide = Array.from(allItems).map(itemName => {
+            // weekData oldest→newest
+            const weekData = [...recentDates].reverse().map(d => byDate[d][itemName] || 0)
+            const avg      = weekData.length > 0
+                ? Math.round(weekData.reduce((s, v) => s + v, 0) / weekData.length)
+                : 0
+
+            // trend: compare newest half vs oldest half
+            const mid        = Math.ceil(weekData.length / 2)
+            const recent     = weekData.slice(mid)
+            const older      = weekData.slice(0, mid)
+            const recentAvg  = recent.length ? recent.reduce((s, v) => s + v, 0) / recent.length : avg
+            const olderAvg   = older.length  ? older.reduce((s, v) => s + v, 0)  / older.length  : avg
+            const trend      = recentAvg > olderAvg * 1.15 ? 'up' : recentAvg < olderAvg * 0.85 ? 'down' : 'stable'
+
+            return { name: itemName, weekData, avg, trend, todayQty: todayItemQty[itemName] || 0 }
+        }).sort((a, b) => b.avg - a.avg).slice(0, 10)
+
+        //  Weekly pattern: total orders per day of week 
+        const dowTotals   = Array(7).fill(0)
+        const dowDayCount = Array.from({ length: 7 }, () => new Set())
+        historicalOrders.forEach(order => {
+            const d = new Date(order.createdAt)
+            dowTotals[d.getDay()]++
+            dowDayCount[d.getDay()].add(d.toISOString().split('T')[0])
+        })
+        const weeklyPattern = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map((day, i) => ({
+            day,
+            avg:         dowDayCount[i].size > 0 ? Math.round(dowTotals[i] / dowDayCount[i].size) : 0,
+            totalOrders: dowTotals[i],
+        }))
+
+        const DAY_NAMES = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday']
+        res.json({
+            prepGuide,
+            weeklyPattern,
+            todayDayName:   DAY_NAMES[todayDow],
+            daysAnalysed:   recentDates.length,
+            periodDates:    recentDates,
+        })
+    } catch (error) {
+        console.error('Error in getDemandForecast:', error)
+        res.status(500).json({ error: 'Server error' })
+    }
+}
 
 export async function getStats(req, res) {
     try {

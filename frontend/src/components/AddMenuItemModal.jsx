@@ -1,5 +1,22 @@
 import { useState, useRef, useEffect } from 'react'
 
+const TAGS = [
+  { value: 'vegan',         label: 'Vegan'         },
+  { value: 'vegetarian',    label: 'Vegetarian'    },
+  { value: 'halal',         label: 'Halal'         },
+  { value: 'gluten-free',   label: 'Gluten-Free'   },
+  { value: 'spicy',         label: 'Spicy'         },
+  { value: 'contains-nuts', label: 'Contains Nuts' },
+]
+
+const MEAL_PERIODS = [
+  { value: 'all-day',   label: 'All Day'   },
+  { value: 'breakfast', label: 'Breakfast' },
+  { value: 'lunch',     label: 'Lunch'     },
+  { value: 'dinner',    label: 'Dinner'    },
+  { value: 'snack',     label: 'Snack'     },
+]
+
 const emptyForm = {
   name: '',
   category: '',
@@ -7,6 +24,11 @@ const emptyForm = {
   fullPrice: '',
   description: '',
   isAvailable: true,
+  prepTime: '0',
+  tags: [],
+  mealPeriod: 'all-day',
+  isFeatured: false,
+  specialNote: '',
 }
 
 export default function AddMenuItemModal({ open, onClose, onSubmit, editItem, categories }) {
@@ -28,6 +50,11 @@ export default function AddMenuItemModal({ open, onClose, onSubmit, editItem, ca
         fullPrice: editItem.fullPrice?.toString() || editItem.price?.toString() || '',
         description: editItem.description || '',
         isAvailable: editItem.isAvailable !== false,
+        prepTime: editItem.prepTime?.toString() ?? '0',
+        tags: editItem.tags || [],
+        mealPeriod: editItem.mealPeriod || 'all-day',
+        isFeatured: editItem.isFeatured ?? false,
+        specialNote: editItem.specialNote || '',
       })
 
       setImagePreview(editItem.imageUrl || null)
@@ -44,8 +71,17 @@ export default function AddMenuItemModal({ open, onClose, onSubmit, editItem, ca
   if (!open) return null
 
   const handleChange = (field) => (e) => {
-    const value = field === 'isAvailable' ? e.target.checked : e.target.value
+    const value = (field === 'isAvailable' || field === 'isFeatured') ? e.target.checked : e.target.value
     setForm((prev) => ({ ...prev, [field]: value }))
+  }
+
+  const handleTagToggle = (tagValue) => {
+    setForm(prev => ({
+      ...prev,
+      tags: prev.tags.includes(tagValue)
+        ? prev.tags.filter(t => t !== tagValue)
+        : [...prev.tags, tagValue]
+    }))
   }
 
   const handleImageSelect = (file) => {
@@ -98,6 +134,11 @@ export default function AddMenuItemModal({ open, onClose, onSubmit, editItem, ca
     formData.append('fullPrice', form.fullPrice)
     formData.append('description', form.description.trim())
     formData.append('isAvailable', form.isAvailable)
+    formData.append('prepTime', form.prepTime || '0')
+    formData.append('tags', form.tags.join(','))
+    formData.append('mealPeriod', form.mealPeriod)
+    formData.append('isFeatured', form.isFeatured)
+    formData.append('specialNote', form.specialNote.trim())
 
     if (imageFile) {
       formData.append('image', imageFile)
@@ -238,6 +279,20 @@ export default function AddMenuItemModal({ open, onClose, onSubmit, editItem, ca
             </div>
 
             <div className="space-y-2">
+              <label className="text-label-md text-on-surface font-semibold block">Prep Time (minutes)</label>
+              <input
+                type="number"
+                value={form.prepTime}
+                onChange={handleChange('prepTime')}
+                min="0"
+                step="1"
+                className="w-full h-12 px-4 rounded-lg border border-outline-variant bg-surface focus:border-primary focus:ring-1 focus:ring-primary outline-none text-body-md transition-colors"
+                placeholder="0 = pre-prepared"
+              />
+              <p className="text-xs text-on-surface-variant">Enter 0 for items already prepared (drinks, snacks, etc.)</p>
+            </div>
+
+            <div className="space-y-2">
               <label className="text-label-md text-on-surface font-semibold block">Initial Status</label>
               <div className="flex items-center gap-3 h-12">
                 <label className="relative inline-flex items-center cursor-pointer">
@@ -254,6 +309,37 @@ export default function AddMenuItemModal({ open, onClose, onSubmit, editItem, ca
                 </span>
               </div>
             </div>
+
+            <div className="space-y-2">
+              <label className="text-label-md text-on-surface font-semibold block">Meal Period</label>
+              <select
+                value={form.mealPeriod}
+                onChange={handleChange('mealPeriod')}
+                className="w-full h-12 px-4 rounded-lg border border-outline-variant bg-surface focus:border-primary focus:ring-1 focus:ring-primary outline-none text-body-md transition-colors"
+              >
+                {MEAL_PERIODS.map(p => (
+                  <option key={p.value} value={p.value}>{p.label}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-label-md text-on-surface font-semibold block">Daily Special</label>
+              <div className="flex items-center gap-3 h-12">
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={form.isFeatured}
+                    onChange={handleChange('isFeatured')}
+                    className="sr-only peer"
+                  />
+                  <div className="w-11 h-6 bg-surface-dim peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-secondary"></div>
+                </label>
+                <span className="text-body-md text-on-surface-variant">
+                  {form.isFeatured ? "Featured as today's special" : 'Regular item'}
+                </span>
+              </div>
+            </div>
           </div>
 
           <div className="space-y-2">
@@ -266,6 +352,42 @@ export default function AddMenuItemModal({ open, onClose, onSubmit, editItem, ca
               placeholder="Brief description of the item..."
             />
           </div>
+
+          <div className="space-y-2">
+            <label className="text-label-md text-on-surface font-semibold block">Dietary Tags</label>
+            <div className="flex flex-wrap gap-2">
+              {TAGS.map(tag => (
+                <button
+                  key={tag.value}
+                  type="button"
+                  onClick={() => handleTagToggle(tag.value)}
+                  className={`px-3 py-1.5 rounded-full text-sm font-medium border transition-colors cursor-pointer ${
+                    form.tags.includes(tag.value)
+                      ? 'bg-primary text-on-primary border-primary'
+                      : 'bg-surface border-outline-variant text-on-surface-variant hover:bg-surface-container'
+                  }`}
+                >
+                  {tag.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {form.isFeatured && (
+            <div className="space-y-2">
+              <label className="text-label-md text-on-surface font-semibold block">
+                Special Note <span className="text-outline font-normal">(optional)</span>
+              </label>
+              <input
+                type="text"
+                value={form.specialNote}
+                onChange={handleChange('specialNote')}
+                maxLength={100}
+                className="w-full h-12 px-4 rounded-lg border border-outline-variant bg-surface focus:border-primary focus:ring-1 focus:ring-primary outline-none text-body-md transition-colors"
+                placeholder='e.g., "Chef&apos;s special today!"'
+              />
+            </div>
+          )}
 
           {submitError && (
             <div className="rounded-lg border border-error bg-error-container/30 px-4 py-3 text-sm text-error">

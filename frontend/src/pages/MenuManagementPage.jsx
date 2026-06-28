@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import Sidebar from '../components/Sidebar'
 import KitchenBottomNav from '../components/KitchenBottomNav'
 import AddMenuItemModal from '../components/AddMenuItemModal'
+import Pagination from '../components/Pagination'
 
 import axios from "axios"
 import { useAuth } from '../context/AuthContext'
@@ -29,7 +30,8 @@ export default function MenuManagementPage() {
 
   const [items, setItems] = useState([])
   const [categories, setCategories] = useState([])
-  
+  const [pagination, setPagination] = useState({ page: 1, totalPages: 1, total: 0, limit: 20 })
+
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [search, setSearch] = useState('')
@@ -38,8 +40,7 @@ export default function MenuManagementPage() {
   const [modalOpen, setModalOpen] = useState(false)
   const [editItem, setEditItem] = useState(null)
 
-  // Fetch all menu items
-  const fetchItems = async () => {
+  const fetchItems = async (page = pagination.page) => {
     try {
       setLoading(true)
       setError(null)
@@ -47,10 +48,13 @@ export default function MenuManagementPage() {
       const params = new URLSearchParams()
       if (debouncedSearch) params.append('search', debouncedSearch)
       if (categoryFilter && categoryFilter !== 'all') params.append('category', categoryFilter)
+      params.append('page', String(page))
+      params.append('limit', '20')
 
       const { data } = await axios.get(`/menuitems?${params}`)
 
-      setItems(data)
+      setItems(data.items)
+      setPagination(data.pagination)
     } catch (err) {
       setError(err.message || 'Network error while loading menu items')
       console.error(err)
@@ -60,8 +64,15 @@ export default function MenuManagementPage() {
   }
 
   useEffect(() => {
-    fetchItems()
+    // Reset to page 1 and fetch when filters change
+    setPagination(prev => ({ ...prev, page: 1 }))
+    fetchItems(1)
   }, [debouncedSearch, categoryFilter])
+
+  useEffect(() => {
+    // Fetch when page changes (but not when filter changes — handled above)
+    fetchItems(pagination.page)
+  }, [pagination.page])
 
 
   // Fetch all categories
@@ -295,6 +306,7 @@ export default function MenuManagementPage() {
                           <th className="p-4 text-label-md text-on-surface-variant uppercase tracking-wider font-semibold">Item Name</th>
                           <th className="p-4 text-label-md text-on-surface-variant uppercase tracking-wider font-semibold">Category</th>
                           <th className="p-4 text-label-md text-on-surface-variant uppercase tracking-wider font-semibold">Price (KES)</th>
+                          <th className="p-4 text-label-md text-on-surface-variant uppercase tracking-wider font-semibold">Rating</th>
                           <th className="p-4 text-label-md text-on-surface-variant uppercase tracking-wider font-semibold text-center w-32">Status</th>
                           {!isKitchen && <th className="p-4 text-label-md text-on-surface-variant uppercase tracking-wider font-semibold text-right w-24">Actions</th>}
                         </tr>
@@ -321,6 +333,17 @@ export default function MenuManagementPage() {
                             </td>
                             <td className="p-4 text-body-md text-on-surface-variant">{toPascalCase(item?.category?.name)}</td>
                             <td className="p-4 text-body-md font-semibold text-primary">{formatPrice(item)}</td>
+                            <td className="p-4">
+                              {item.ratingCount > 0 ? (
+                                <div className="flex items-center gap-1">
+                                  <span style={{ color: '#F59E0B' }}>★</span>
+                                  <span className="text-sm font-bold text-on-surface">{Number(item.avgRating).toFixed(1)}</span>
+                                  <span className="text-xs text-on-surface-variant">({item.ratingCount})</span>
+                                </div>
+                              ) : (
+                                <span className="text-xs text-on-surface-variant">—</span>
+                              )}
+                            </td>
                             <td className="p-4 text-center">
                               <div className="flex flex-col items-center">
                                 <label className="relative inline-flex items-center cursor-pointer">
@@ -430,6 +453,17 @@ export default function MenuManagementPage() {
                     </div>
                   ))}
                 </div>
+
+                {pagination.total > 0 && (
+                  <Pagination
+                    page={pagination.page}
+                    totalPages={pagination.totalPages}
+                    total={pagination.total}
+                    limit={pagination.limit}
+                    onPageChange={(p) => setPagination(prev => ({ ...prev, page: p }))}
+                    noun="menu items"
+                  />
+                )}
               </>
             )}
           </div>
