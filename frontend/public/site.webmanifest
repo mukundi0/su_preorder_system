@@ -1,0 +1,22 @@
+{
+  "name": "Strathmore Cafeteria",
+  "short_name": "SU Cafe",
+  "description": "Order food at Strathmore University Cafeteria",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#00193c",
+  "theme_color": "#00193c",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/apple-touch-icon.svg",
+      "sizes": "180x180",
+      "type": "image/svg+xml"
+    }
+  ]
+}
