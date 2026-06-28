@@ -6,6 +6,7 @@ import StatsDashboard from '../components/StatsDashboard'
 import CategoryTable from '../components/CategoryTable'
 import Pagination from '../components/Pagination'
 import CategoryModal from '../components/CategoryModal'
+import AdminToast, { useAdminToast } from '../components/AdminToast'
 
 const API_BASE = '/api'
 
@@ -31,6 +32,7 @@ export default function CategoryManagement() {
   const [error, setError] = useState(null)
   const [modalOpen, setModalOpen] = useState(false)
   const [editCategory, setEditCategory] = useState(null)
+  const { toast, dismiss, success, error: showError } = useAdminToast()
 
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearch(search), 400)
@@ -96,8 +98,9 @@ export default function CategoryManagement() {
       await fetchJSON(`${API_BASE}/categories/${cat._id}`, { method: 'DELETE' })
       fetchCategories(pagination.page, debouncedSearch)
       fetchStats()
+      success(`"${cat.name}" deleted`)
     } catch (err) {
-      alert(err.message)
+      showError(err.message)
     }
   }
 
@@ -108,18 +111,20 @@ export default function CategoryManagement() {
           method: 'PUT',
           body: JSON.stringify(form),
         })
+        success(`"${form.name}" updated`)
       } else {
         await fetchJSON(`${API_BASE}/categories`, {
           method: 'POST',
           body: JSON.stringify(form),
         })
+        success(`"${form.name}" created`)
       }
       setModalOpen(false)
       setEditCategory(null)
       fetchCategories(pagination.page, debouncedSearch)
       fetchStats()
     } catch (err) {
-      alert(err.message)
+      showError(err.message)
     }
   }
 
@@ -202,6 +207,7 @@ export default function CategoryManagement() {
         editCategory={editCategory}
       />
       <KitchenBottomNav />
+      <AdminToast toast={toast} onDismiss={dismiss} />
     </div>
   )
 }

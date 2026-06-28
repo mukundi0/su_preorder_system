@@ -3,6 +3,7 @@ import Sidebar from '../components/Sidebar'
 import KitchenBottomNav from '../components/KitchenBottomNav'
 import AddMenuItemModal from '../components/AddMenuItemModal'
 import Pagination from '../components/Pagination'
+import AdminToast, { useAdminToast } from '../components/AdminToast'
 
 import axios from "axios"
 import { useAuth } from '../context/AuthContext'
@@ -39,6 +40,7 @@ export default function MenuManagementPage() {
   const [categoryFilter, setCategoryFilter] = useState('all')
   const [modalOpen, setModalOpen] = useState(false)
   const [editItem, setEditItem] = useState(null)
+  const { toast, dismiss, success, error: showError } = useAdminToast()
 
   const fetchItems = async (page = pagination.page) => {
     try {
@@ -105,50 +107,50 @@ export default function MenuManagementPage() {
 
   const handleToggle = async (item) => {
     const nextAvailability = !item.isAvailable
-
     try {
-      const { data } = await axios.patch(`/menuitems/toggle/${item._id}`, {
-        isAvailable: nextAvailability
-      })
-  
+      const { data } = await axios.patch(`/menuitems/toggle/${item._id}`, { isAvailable: nextAvailability })
       setItems((prev) => prev.map((row) => (row._id === item._id ? data : row)))
-
+      success(`"${item.name}" marked ${nextAvailability ? 'available' : 'sold out'}`)
     } catch (err) {
-      console.error(err)
+      showError(err?.response?.data?.error || err.message || 'Failed to update availability')
     }
   }
 
   const handleDelete = async (item) => {
     if (!window.confirm(`Delete "${item.name}"? This cannot be undone.`)) return
-    
     try {
       await axios.delete(`/menuitems/delete/${item._id}`)
-
       fetchItems()
+      success(`"${item.name}" deleted`)
     } catch (err) {
-      console.error(err)
+      showError(err?.response?.data?.error || err.message || 'Failed to delete item')
     }
   }
 
   const handleSubmit = async (formData, editItemData) => {
-    const url = editItemData
-      ? `/menuitems/update/${editItemData._id}`
-      : `/menuitems/create`
-    
-    const { data } = editItemData 
-      ? await axios.put(url, formData)
-      : await axios.post(url, formData)
+    try {
+      const url = editItemData
+        ? `/menuitems/update/${editItemData._id}`
+        : `/menuitems/create`
 
-    if (editItemData) {
-      setItems((prev) => prev.map((item) => (item._id === data._id ? data : item)))
-    } else {
-      setItems((prev) => [data, ...prev])
+      const { data } = editItemData
+        ? await axios.put(url, formData)
+        : await axios.post(url, formData)
+
+      if (editItemData) {
+        setItems((prev) => prev.map((item) => (item._id === data._id ? data : item)))
+        success(`"${data.name}" updated`)
+      } else {
+        setItems((prev) => [data, ...prev])
+        success(`"${data.name}" added to menu`)
+      }
+
+      setModalOpen(false)
+      setEditItem(null)
+      await fetchItems()
+    } catch (err) {
+      showError(err?.response?.data?.error || err.message || 'Failed to save menu item')
     }
-
-    setModalOpen(false)
-    setEditItem(null)
-    
-    await fetchItems()
   }
 
   const handleAdd = () => {
@@ -479,6 +481,7 @@ export default function MenuManagementPage() {
         editItem={editItem}
         categories={categories}
       />
+      <AdminToast toast={toast} onDismiss={dismiss} />
     </div>
   )
 }

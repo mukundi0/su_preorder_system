@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import axios from 'axios'
 import Sidebar from '../components/Sidebar'
 import KitchenBottomNav from '../components/KitchenBottomNav'
+import AdminToast, { useAdminToast } from '../components/AdminToast'
 
 const STATUS_META = {
   open:      { label: 'Open',      color: 'bg-red-100 text-red-700',    dot: 'bg-red-500' },
@@ -35,7 +36,7 @@ export default function IssuesPage() {
   const [updating, setUpdating]   = useState(false)
   const [noteText, setNoteText]   = useState('')
   const [savingNote, setSavingNote] = useState(false)
-  const [noteSaved, setNoteSaved] = useState(false)
+  const { toast, dismiss, success, error: showError } = useAdminToast()
 
   const fetchIssues = useCallback(async () => {
     try {
@@ -53,22 +54,24 @@ export default function IssuesPage() {
       const { data } = await axios.patch(`/issues/${issue._id}/status`, { status: newStatus })
       setIssues(prev => prev.map(i => i._id === data._id ? data : i))
       if (selected?._id === data._id) setSelected(data)
-    } catch {}
-    finally { setUpdating(false) }
+      const label = STATUS_META[newStatus]?.label || newStatus
+      success(`Status updated to ${label}`)
+    } catch (err) {
+      showError(err?.response?.data?.error || 'Failed to update status')
+    } finally { setUpdating(false) }
   }
 
   const handleSaveNote = async () => {
     if (!selected) return
     setSavingNote(true)
-    setNoteSaved(false)
     try {
       const { data } = await axios.patch(`/issues/${selected._id}/note`, { adminNote: noteText })
       setIssues(prev => prev.map(i => i._id === data._id ? data : i))
       setSelected(data)
-      setNoteSaved(true)
-      setTimeout(() => setNoteSaved(false), 2500)
-    } catch {}
-    finally { setSavingNote(false) }
+      success('Note saved')
+    } catch (err) {
+      showError(err?.response?.data?.error || 'Failed to save note')
+    } finally { setSavingNote(false) }
   }
 
   function openDetail(issue) {
@@ -180,6 +183,8 @@ export default function IssuesPage() {
 
       <KitchenBottomNav />
 
+      <AdminToast toast={toast} onDismiss={dismiss} />
+
       {/* Issue detail modal */}
       {selected && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
@@ -249,12 +254,10 @@ export default function IssuesPage() {
                     disabled={savingNote}
                     className="px-4 py-1.5 bg-primary text-on-primary text-xs font-bold rounded-lg cursor-pointer border-none disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5"
                   >
-                    {savingNote
-                      ? <span className="material-symbols-outlined animate-spin text-[14px]">refresh</span>
-                      : noteSaved
-                        ? <span className="material-symbols-outlined text-[14px]">check</span>
-                        : null}
-                    {noteSaved ? 'Saved' : 'Save Note'}
+                    {savingNote && (
+                      <span className="material-symbols-outlined animate-spin text-[14px]">refresh</span>
+                    )}
+                    Save Note
                   </button>
                 </div>
               </div>
