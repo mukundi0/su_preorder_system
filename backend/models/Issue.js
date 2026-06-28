@@ -1,7 +1,7 @@
 import mongoose from 'mongoose'
 
 const IssueSchema = new mongoose.Schema({
-  order:       { type: mongoose.Schema.Types.ObjectId, ref: 'Order', required: true },
+  order:       { type: mongoose.Schema.Types.ObjectId, ref: 'Order', default: null },
   user:        { type: mongoose.Schema.Types.ObjectId, ref: 'User',  required: true },
   category:    {
     type: String,
@@ -10,6 +10,7 @@ const IssueSchema = new mongoose.Schema({
   },
   description: { type: String, required: true, maxlength: 1000 },
   status:      { type: String, enum: ['open', 'in_review', 'resolved'], default: 'open' },
+  adminNote:   { type: String, default: '', maxlength: 2000 },
 }, { timestamps: true })
 
 export default mongoose.model('Issue', IssueSchema)
