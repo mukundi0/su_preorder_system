@@ -80,12 +80,35 @@ function HorizontalBar({ label, value, max, color = 'bg-primary' }) {
   )
 }
 
+// Mini sparkline: array of numbers, rendered as tiny bars
+function Sparkline({ data, color = 'bg-primary' }) {
+  const max = Math.max(...data, 1)
+  return (
+    <div className="flex items-end gap-0.5 h-8 w-16">
+      {data.map((v, i) => (
+        <div
+          key={i}
+          className={`flex-1 rounded-sm ${color} opacity-70`}
+          style={{ height: `${Math.max((v / max) * 100, v > 0 ? 10 : 4)}%` }}
+        />
+      ))}
+    </div>
+  )
+}
+
+function TrendIcon({ trend }) {
+  if (trend === 'up')   return <span className="material-symbols-outlined text-[18px] text-green-600">trending_up</span>
+  if (trend === 'down') return <span className="material-symbols-outlined text-[18px] text-red-500">trending_down</span>
+  return <span className="material-symbols-outlined text-[18px] text-on-surface-variant">trending_flat</span>
+}
+
 export default function DashboardPage() {
   const { user } = useAuth()
   const isAdmin = user?.role === 'admin'
 
   const [orders, setOrders] = useState([])
   const [stats, setStats] = useState(null)
+  const [forecast, setForecast] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [lastRefresh, setLastRefresh] = useState(new Date())
@@ -93,12 +116,14 @@ export default function DashboardPage() {
   const fetchData = useCallback(async () => {
     try {
       setError(null)
-      const [ordersRes, statsRes] = await Promise.all([
+      const [ordersRes, statsRes, forecastRes] = await Promise.all([
         axios.get('/orders'),
         axios.get('/stats'),
+        axios.get('/stats/forecast'),
       ])
       setOrders(ordersRes.data)
       setStats(statsRes.data)
+      setForecast(forecastRes.data)
       setLastRefresh(new Date())
     } catch (err) {
       setError(err.message || 'Failed to load dashboard data')
@@ -147,15 +172,6 @@ export default function DashboardPage() {
     .filter(h => h.hour >= 6 && h.hour <= 21)
   const maxHourCount = Math.max(...peakHours.map(h => h.count), 1)
 
-  // Today's demand forecast (items ordered today)
-  const todayItemFreq = {}
-  todayOrders.forEach(o => o.items?.forEach(i => {
-    const name = i.item?.name || 'Unknown'
-    todayItemFreq[name] = (todayItemFreq[name] || 0) + (i.qty || 1)
-  }))
-  const todayTopItems = Object.entries(todayItemFreq).sort((a, b) => b[1] - a[1]).slice(0, 5)
-  const maxTodayQty   = todayTopItems[0]?.[1] || 1
-
   // Payment method split
   const mpesaCount  = orders.filter(o => o.paymentMethod === 'mpesa').length
   const walletCount = orders.filter(o => o.paymentMethod === 'wallet').length
@@ -173,6 +189,15 @@ export default function DashboardPage() {
   const hour = new Date().getHours()
   const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening'
   const firstName = user?.name?.split(' ')[0] || (isAdmin ? 'Admin' : 'Staff')
+
+  // Forecast helpers
+  const prepGuide     = forecast?.prepGuide    || []
+  const weeklyPattern = forecast?.weeklyPattern || []
+  const todayDayName  = forecast?.todayDayName || ''
+  const daysAnalysed  = forecast?.daysAnalysed  || 0
+  const maxWeeklyAvg  = Math.max(...weeklyPattern.map(d => d.avg), 1)
+
+  const SPARKLINE_COLORS = ['bg-primary', 'bg-secondary', 'bg-tertiary-fixed-dim', 'bg-outline', 'bg-primary-container']
 
   return (
     <div className="bg-background text-on-background min-h-screen">
@@ -331,7 +356,6 @@ export default function DashboardPage() {
                     </div>
                     <div className="space-y-3">
                       {Object.entries(statusCounts).sort((a, b) => b[1] - a[1]).map(([status, count]) => {
-                        const meta = STATUS_META[status] || { label: status }
                         const pct = orders.length > 0 ? Math.round((count / orders.length) * 100) : 0
                         return (
                           <div key={status} className="flex items-center gap-3">
@@ -398,47 +422,215 @@ export default function DashboardPage() {
                 </div>
               )}
 
-              {/* ── Admin: Today's Demand Forecast ── */}
+              {/* ── Admin: Demand Forecasting Section ── */}
               {isAdmin && (
-                <div className="bg-surface-container-lowest p-6 rounded-xl border border-outline-variant shadow-sm">
-                  <div className="flex items-center justify-between mb-5">
+                <div className="flex flex-col gap-6">
+
+                  {/* Section header */}
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-tertiary-fixed rounded-xl">
+                      <span className="material-symbols-outlined text-primary">insights</span>
+                    </div>
                     <div>
-                      <h3 className="font-bold text-primary">Today's Demand Forecast</h3>
+                      <h2 className="text-xl font-bold text-primary">Demand Forecasting</h2>
                       <p className="text-xs text-on-surface-variant mt-0.5">
-                        Items ordered today — use this to guide kitchen prep quantities
+                        {daysAnalysed > 0
+                          ? `Rolling averages across the last ${daysAnalysed} day${daysAnalysed !== 1 ? 's' : ''} of orders — use to plan prep quantities`
+                          : 'No historical orders yet — place some orders and refresh'}
                       </p>
                     </div>
-                    <div className="hidden md:flex items-center gap-2 text-xs text-on-surface-variant bg-tertiary-fixed px-3 py-1.5 rounded-full font-bold uppercase tracking-wider">
-                      <span className="material-symbols-outlined text-[14px]">lightbulb</span>
-                      Forecast
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+
+                    {/* ── Prep Guide table (2/3 width) ── */}
+                    <div className="md:col-span-2 bg-surface-container-lowest rounded-xl border border-outline-variant shadow-sm overflow-hidden">
+                      <div className="p-5 border-b border-outline-variant flex items-center justify-between">
+                        <div>
+                          <h3 className="font-bold text-primary">Today's Prep Guide</h3>
+                          <p className="text-xs text-on-surface-variant mt-0.5">
+                            Suggested quantities based on same-weekday history
+                          </p>
+                        </div>
+                        <span className="hidden md:flex items-center gap-1.5 text-xs font-bold bg-primary-fixed text-primary px-3 py-1.5 rounded-full uppercase tracking-wider">
+                          <span className="material-symbols-outlined text-[14px]">today</span>
+                          {todayDayName}
+                        </span>
+                      </div>
+
+                      {prepGuide.length === 0 ? (
+                        <div className="flex flex-col items-center py-12 text-on-surface-variant">
+                          <span className="material-symbols-outlined text-4xl mb-3 opacity-40">restaurant</span>
+                          <p className="font-semibold text-sm">No previous orders found</p>
+                          <p className="text-xs mt-1">Place some test orders and refresh to see forecasts</p>
+                        </div>
+                      ) : (
+                        <>
+                          {/* Desktop table */}
+                          <div className="hidden md:block overflow-x-auto">
+                            <table className="w-full text-left">
+                              <thead>
+                                <tr className="bg-surface-container-low border-b border-outline-variant">
+                                  <th className="p-4 text-xs text-on-surface-variant uppercase tracking-wider font-bold">Item</th>
+                                  <th className="p-4 text-xs text-on-surface-variant uppercase tracking-wider font-bold">Last {daysAnalysed} days</th>
+                                  <th className="p-4 text-xs text-on-surface-variant uppercase tracking-wider font-bold text-center">Avg</th>
+                                  <th className="p-4 text-xs text-on-surface-variant uppercase tracking-wider font-bold text-center">Trend</th>
+                                  <th className="p-4 text-xs text-on-surface-variant uppercase tracking-wider font-bold text-center">Today so far</th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y divide-outline-variant">
+                                {prepGuide.map((item, i) => {
+                                  const progress = item.avg > 0 ? Math.min((item.todayQty / item.avg) * 100, 100) : 0
+                                  return (
+                                    <tr key={item.name} className="hover:bg-surface-container-low/50 transition-colors">
+                                      <td className="p-4">
+                                        <div className="flex items-center gap-2">
+                                          <span className={`w-6 h-6 rounded-full flex items-center justify-center text-white text-[11px] font-bold ${SPARKLINE_COLORS[i % SPARKLINE_COLORS.length]}`}>
+                                            {i + 1}
+                                          </span>
+                                          <span className="font-semibold text-on-surface text-sm">{item.name}</span>
+                                        </div>
+                                      </td>
+                                      <td className="p-4">
+                                        <Sparkline data={item.weekData} color={SPARKLINE_COLORS[i % SPARKLINE_COLORS.length]} />
+                                      </td>
+                                      <td className="p-4 text-center">
+                                        <span className="text-2xl font-bold text-primary">{item.avg}</span>
+                                        <span className="text-xs text-on-surface-variant block">portions</span>
+                                      </td>
+                                      <td className="p-4 text-center">
+                                        <TrendIcon trend={item.trend} />
+                                      </td>
+                                      <td className="p-4">
+                                        <div className="flex flex-col items-center gap-1">
+                                          <span className="font-bold text-on-surface">{item.todayQty}</span>
+                                          <div className="w-16 h-1.5 bg-surface-container rounded-full overflow-hidden">
+                                            <div
+                                              className="h-full bg-secondary rounded-full transition-all duration-500"
+                                              style={{ width: `${progress}%` }}
+                                            />
+                                          </div>
+                                          <span className="text-[10px] text-on-surface-variant">{Math.round(progress)}%</span>
+                                        </div>
+                                      </td>
+                                    </tr>
+                                  )
+                                })}
+                              </tbody>
+                            </table>
+                          </div>
+
+                          {/* Mobile cards */}
+                          <div className="md:hidden divide-y divide-outline-variant">
+                            {prepGuide.map((item, i) => {
+                              const progress = item.avg > 0 ? Math.min((item.todayQty / item.avg) * 100, 100) : 0
+                              return (
+                                <div key={item.name} className="p-4 flex items-center gap-3">
+                                  <span className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-bold shrink-0 ${SPARKLINE_COLORS[i % SPARKLINE_COLORS.length]}`}>
+                                    {i + 1}
+                                  </span>
+                                  <div className="flex-1 min-w-0">
+                                    <p className="font-semibold text-on-surface text-sm truncate">{item.name}</p>
+                                    <div className="flex items-center gap-2 mt-1">
+                                      <Sparkline data={item.weekData} color={SPARKLINE_COLORS[i % SPARKLINE_COLORS.length]} />
+                                      <TrendIcon trend={item.trend} />
+                                    </div>
+                                    <div className="mt-2 h-1.5 bg-surface-container rounded-full overflow-hidden">
+                                      <div className="h-full bg-secondary rounded-full" style={{ width: `${progress}%` }} />
+                                    </div>
+                                    <p className="text-[10px] text-on-surface-variant mt-0.5">{item.todayQty} of {item.avg} expected ({Math.round(progress)}%)</p>
+                                  </div>
+                                  <div className="shrink-0 text-right">
+                                    <p className="text-2xl font-bold text-primary">{item.avg}</p>
+                                    <p className="text-[10px] text-on-surface-variant">avg/day</p>
+                                  </div>
+                                </div>
+                              )
+                            })}
+                          </div>
+                        </>
+                      )}
+                    </div>
+
+                    {/* ── Weekly Demand Pattern (1/3 width) ── */}
+                    <div className="bg-surface-container-lowest p-6 rounded-xl border border-outline-variant shadow-sm flex flex-col">
+                      <div className="flex items-center justify-between mb-5">
+                        <div>
+                          <h3 className="font-bold text-primary">Weekly Pattern</h3>
+                          <p className="text-xs text-on-surface-variant mt-0.5">Avg orders per weekday</p>
+                        </div>
+                        <span className="material-symbols-outlined text-primary opacity-40 text-2xl">calendar_view_week</span>
+                      </div>
+
+                      {weeklyPattern.every(d => d.avg === 0) ? (
+                        <div className="flex-1 flex flex-col items-center justify-center text-on-surface-variant py-8">
+                          <span className="material-symbols-outlined text-3xl mb-2 opacity-40">bar_chart</span>
+                          <p className="text-xs text-center">Appears after orders span multiple days</p>
+                        </div>
+                      ) : (
+                        <div className="flex-1 space-y-2.5">
+                          {weeklyPattern.map((d, i) => {
+                            const isToday = i === new Date().getDay()
+                            const pct = maxWeeklyAvg > 0 ? Math.max((d.avg / maxWeeklyAvg) * 100, d.avg > 0 ? 4 : 0) : 0
+                            return (
+                              <div key={d.day}>
+                                <div className="flex justify-between text-xs mb-1">
+                                  <span className={`font-semibold ${isToday ? 'text-primary' : 'text-on-surface-variant'}`}>
+                                    {d.day}{isToday ? ' ·' : ''}
+                                  </span>
+                                  <span className={`font-bold ${isToday ? 'text-primary' : 'text-on-surface-variant'}`}>
+                                    {d.avg > 0 ? `~${d.avg}` : '—'}
+                                  </span>
+                                </div>
+                                <div className="h-2 bg-surface-container rounded-full overflow-hidden">
+                                  <div
+                                    className={`h-full rounded-full transition-all duration-500 ${isToday ? 'bg-primary' : 'bg-secondary opacity-60'}`}
+                                    style={{ width: `${pct}%` }}
+                                  />
+                                </div>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      )}
+
+                      {daysAnalysed > 0 && (
+                        <p className="text-[10px] text-on-surface-variant mt-4 pt-3 border-t border-outline-variant">
+                          Based on {daysAnalysed} day{daysAnalysed !== 1 ? 's' : ''} of order history
+                        </p>
+                      )}
                     </div>
                   </div>
-                  {todayTopItems.length === 0 ? (
-                    <div className="flex flex-col items-center py-8 text-on-surface-variant">
-                      <span className="material-symbols-outlined text-4xl mb-2">restaurant</span>
-                      <p className="text-sm">No orders placed today yet</p>
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {todayTopItems.map(([name, qty], i) => {
-                        const colors = ['bg-primary', 'bg-secondary', 'bg-tertiary-fixed-dim', 'bg-outline', 'bg-primary-container']
+
+                  {/* ── Top item demand trends (sparkline cards row) ── */}
+                  {prepGuide.length > 0 && (
+                    <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                      {prepGuide.slice(0, 5).map((item, i) => {
+                        const maxVal = Math.max(...item.weekData, 1)
                         return (
-                          <div key={name} className="flex items-center gap-4 p-4 bg-surface-container-low rounded-xl">
-                            <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm ${colors[i % colors.length]}`}>
-                              {i + 1}
+                          <div key={item.name} className="bg-surface-container-lowest p-4 rounded-xl border border-outline-variant shadow-sm flex flex-col gap-2">
+                            <div className="flex items-start justify-between gap-1">
+                              <p className="text-xs font-bold text-on-surface leading-tight line-clamp-2">{item.name}</p>
+                              <TrendIcon trend={item.trend} />
                             </div>
-                            <div className="flex-1 min-w-0">
-                              <p className="font-semibold text-on-surface truncate">{name}</p>
-                              <div className="mt-1 h-1.5 bg-surface-container rounded-full overflow-hidden">
+                            <div className="flex items-end gap-0.5 h-10 mt-1">
+                              {item.weekData.map((v, wi) => (
                                 <div
-                                  className={`h-full rounded-full ${colors[i % colors.length]}`}
-                                  style={{ width: `${(qty / maxTodayQty) * 100}%` }}
+                                  key={wi}
+                                  className={`flex-1 rounded-sm ${SPARKLINE_COLORS[i % SPARKLINE_COLORS.length]}`}
+                                  style={{ height: `${Math.max((v / maxVal) * 100, v > 0 ? 10 : 3)}%`, opacity: 0.5 + (wi / item.weekData.length) * 0.5 }}
                                 />
-                              </div>
+                              ))}
                             </div>
-                            <div className="text-right shrink-0">
-                              <p className="text-2xl font-bold text-primary">{qty}</p>
-                              <p className="text-xs text-on-surface-variant">portions</p>
+                            <div className="flex justify-between items-end">
+                              <div>
+                                <p className="text-[10px] text-on-surface-variant">Avg</p>
+                                <p className="text-lg font-bold text-primary leading-none">{item.avg}</p>
+                              </div>
+                              <div className="text-right">
+                                <p className="text-[10px] text-on-surface-variant">Today</p>
+                                <p className={`text-lg font-bold leading-none ${item.todayQty >= item.avg ? 'text-green-600' : 'text-on-surface'}`}>{item.todayQty}</p>
+                              </div>
                             </div>
                           </div>
                         )

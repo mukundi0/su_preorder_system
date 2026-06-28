@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
 import axios from 'axios'
+import jsQR from 'jsqr'
 import { jsPDF } from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import Sidebar from '../components/Sidebar'
@@ -21,10 +23,6 @@ const STATUS_META = {
   cancelled:          { label: 'Cancelled',         color: 'bg-red-100 text-red-700',         dot: 'bg-red-400' },
 }
 
-// Kitchen flow: pending → preparing → ready for pickup (simpler 3-step flow)
-const NEXT_STATUS   = { pending: 'preparing', received: 'preparing', preparing: 'ready for pickup' }
-const ADVANCE_LABEL = { pending: 'Start Preparing', received: 'Start Preparing', preparing: 'Mark as Ready' }
-const ADVANCE_ICON  = { pending: 'skillet',          received: 'skillet',         preparing: 'check_circle' }
 
 function StatusBadge({ status }) {
   const m = STATUS_META[status] || { label: status, color: 'bg-surface-container text-on-surface-variant' }
@@ -58,7 +56,6 @@ function QRScannerModal({ open, onClose, onCollected }) {
   const canvasRef   = useRef(null)
   const streamRef   = useRef(null)
   const scanRef     = useRef(null)
-  const detectorRef = useRef(null)
 
   const [phase, setPhase]         = useState('scanning')
   const [message, setMessage]     = useState('')
@@ -103,34 +100,40 @@ function QRScannerModal({ open, onClose, onCollected }) {
     setCameraError('')
     setCollectedOrder(null)
 
-    if (!('BarcodeDetector' in window)) {
-      setCameraError('Camera scanning not supported in this browser. Use manual order number below.')
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setCameraError('Camera not supported in this browser. Use the manual order number below.')
       return
     }
 
-    detectorRef.current = new window.BarcodeDetector({ formats: ['qr_code'] })
-
-    navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+    navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' } } })
       .then(stream => {
         streamRef.current = stream
         if (videoRef.current) {
           videoRef.current.srcObject = stream
-          videoRef.current.play()
+          videoRef.current.play().catch(() => {})
         }
-        scanRef.current = setInterval(async () => {
+        scanRef.current = setInterval(() => {
           const video = videoRef.current
           const canvas = canvasRef.current
           if (!video || !canvas || video.readyState < 2) return
-          try {
-            canvas.width  = video.videoWidth
-            canvas.height = video.videoHeight
-            canvas.getContext('2d').drawImage(video, 0, 0)
-            const barcodes = await detectorRef.current.detect(canvas)
-            if (barcodes.length > 0) handleQRData(barcodes[0].rawValue)
-          } catch {}
-        }, 500)
+          canvas.width  = video.videoWidth
+          canvas.height = video.videoHeight
+          const ctx = canvas.getContext('2d')
+          ctx.drawImage(video, 0, 0)
+          const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
+          const code = jsQR(imageData.data, imageData.width, imageData.height)
+          if (code) handleQRData(code.data)
+        }, 300)
       })
-      .catch(() => setCameraError('Camera access denied. Use the manual order number below.'))
+      .catch(err => {
+        if (err.name === 'NotAllowedError') {
+          setCameraError('Camera access denied. Allow camera permission and try again.')
+        } else if (err.name === 'NotFoundError') {
+          setCameraError('No camera found on this device. Use the manual order number below.')
+        } else {
+          setCameraError('Could not start camera. Use the manual order number below.')
+        }
+      })
 
     return stopCamera
   }, [open, handleQRData, stopCamera])
@@ -179,22 +182,7 @@ function QRScannerModal({ open, onClose, onCollected }) {
         </div>
 
         <div className="p-5 space-y-4">
-          {phase === 'success' ? (
-            <div className="flex flex-col items-center gap-4 py-4 text-center">
-              <div className="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center">
-                <span className="material-symbols-outlined text-green-600 text-4xl" style={{ fontVariationSettings: "'FILL' 1" }}>check_circle</span>
-              </div>
-              <div>
-                <p className="font-bold text-on-surface text-lg">Order Collected!</p>
-                <p className="text-sm text-on-surface-variant mt-1">
-                  Order <span className="font-bold text-primary">{collectedOrder?.orderNumber}</span> has been marked as collected.
-                </p>
-              </div>
-              <button onClick={() => { stopCamera(); onClose() }} className="px-6 py-2.5 bg-primary text-on-primary rounded-lg font-bold cursor-pointer hover:opacity-90">
-                Done
-              </button>
-            </div>
-          ) : (
+          {phase === 'success' ? null : (
             <>
               <p className="text-sm text-on-surface-variant text-center">
                 Position the student's digital receipt QR code within the frame below.
@@ -257,20 +245,89 @@ function QRScannerModal({ open, onClose, onCollected }) {
           )}
         </div>
       </div>
+
+      {/* Full-screen success popup */}
+      {phase === 'success' && (
+        <div className="fixed inset-0 z-[300] flex items-center justify-center p-6">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+          <div className="relative bg-surface rounded-3xl shadow-2xl w-full max-w-sm flex flex-col items-center text-center p-8 gap-5">
+
+            {/* Animated checkmark ring */}
+            <div className="relative w-24 h-24">
+              <div className="absolute inset-0 rounded-full bg-green-100 animate-ping opacity-30" />
+              <div className="absolute inset-0 rounded-full bg-green-100 flex items-center justify-center">
+                <span
+                  className="material-symbols-outlined text-green-600"
+                  style={{ fontSize: 52, fontVariationSettings: "'FILL' 1" }}
+                >
+                  check_circle
+                </span>
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <h2 className="text-2xl font-extrabold text-on-surface">Order Collected!</h2>
+              <p className="text-on-surface-variant text-sm">
+                Successfully marked as collected
+              </p>
+            </div>
+
+            {/* Order details pill */}
+            <div className="bg-surface-container rounded-2xl px-6 py-4 w-full space-y-1">
+              <p className="text-xs font-bold uppercase tracking-widest text-on-surface-variant">Order</p>
+              <p className="text-2xl font-extrabold text-primary">{collectedOrder?.orderNumber}</p>
+              {collectedOrder?.user?.name && (
+                <p className="text-sm text-on-surface-variant">{collectedOrder.user.name}</p>
+              )}
+            </div>
+
+            <button
+              onClick={() => { stopCamera(); onClose() }}
+              className="w-full py-3.5 bg-primary text-on-primary rounded-2xl font-bold text-base cursor-pointer border-none hover:opacity-90 transition-opacity"
+            >
+              Done
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
 
 // ─── Kitchen Order Card ───────────────────────────────────────────────────────
 
-function KitchenOrderCard({ order, cardBorder, onAdvance, onOpenScanner, advancing }) {
+function PrepCountdown({ readyAt }) {
+  const [display, setDisplay] = useState('')
+
+  useEffect(() => {
+    function update() {
+      if (!readyAt) { setDisplay(''); return }
+      const msLeft = new Date(readyAt) - Date.now()
+      if (msLeft <= 0) {
+        setDisplay('Ready soon...')
+      } else {
+        const mins = Math.ceil(msLeft / 60000)
+        setDisplay(`Ready in ${mins}m`)
+      }
+    }
+    update()
+    const t = setInterval(update, 30000)
+    return () => clearInterval(t)
+  }, [readyAt])
+
+  if (!display) return null
+  return (
+    <div className="flex items-center gap-1.5 text-xs font-bold text-blue-600">
+      <span className="material-symbols-outlined text-[14px]">timer</span>
+      {display}
+    </div>
+  )
+}
+
+function KitchenOrderCard({ order, cardBorder, onOpenScanner }) {
   const isReady     = order.orderStatus === 'ready for pickup' || order.orderStatus === 'ready'
   const isCollected = order.orderStatus === 'collected' || order.orderStatus === 'completed'
-  const waitMs   = Date.now() - new Date(order.createdAt).getTime()
-  const waitMins = Math.floor(waitMs / 60000)
-  const isOverdue = order.orderStatus === 'pending' && waitMins >= 10
-
-  const nextStatus = NEXT_STATUS[order.orderStatus]
+  const isPreparing = order.orderStatus === 'preparing'
 
   return (
     <article className={`bg-surface-container-lowest rounded-lg p-4 border border-outline-variant shadow-sm flex flex-col gap-3 ${cardBorder}`}>
@@ -279,7 +336,7 @@ function KitchenOrderCard({ order, cardBorder, onAdvance, onOpenScanner, advanci
         <span className="text-xs font-bold text-on-surface-variant bg-surface-container-low px-2 py-1 rounded border border-outline-variant">
           #{order.orderNumber}
         </span>
-        <span className={`text-xs font-bold flex items-center gap-1 ${isOverdue ? 'text-error' : 'text-on-surface-variant'}`}>
+        <span className="text-xs font-bold flex items-center gap-1 text-on-surface-variant">
           <span className="material-symbols-outlined text-[14px]">schedule</span>
           {relativeTime(order.createdAt)}
         </span>
@@ -303,7 +360,7 @@ function KitchenOrderCard({ order, cardBorder, onAdvance, onOpenScanner, advanci
         ))}
       </div>
 
-      {/* Amount + payment */}
+      {/* Amount + payment + countdown */}
       <div className="flex items-center justify-between">
         <span className="font-bold text-primary text-sm">{formatKES(order.totalAmt)}</span>
         <span className="text-xs text-on-surface-variant uppercase tracking-wide font-medium">
@@ -311,32 +368,18 @@ function KitchenOrderCard({ order, cardBorder, onAdvance, onOpenScanner, advanci
         </span>
       </div>
 
+      {isPreparing && <PrepCountdown readyAt={order.readyAt} />}
+
       {/* Action */}
-      {!isCollected && (
+      {isReady && (
         <div className="pt-1">
-          {isReady ? (
-            <button
-              onClick={onOpenScanner}
-              className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg border-2 border-green-500 text-green-700 font-bold text-sm hover:bg-green-50 transition-colors cursor-pointer"
-            >
-              <span className="material-symbols-outlined text-[18px]">qr_code_scanner</span>
-              Scan to Complete
-            </button>
-          ) : nextStatus ? (
-            <button
-              onClick={() => onAdvance(order._id, nextStatus)}
-              disabled={advancing}
-              className={`w-full flex items-center justify-center gap-2 py-2.5 rounded-lg font-bold text-sm transition-colors cursor-pointer disabled:opacity-50
-                ${order.orderStatus === 'pending'
-                  ? 'bg-primary text-on-primary hover:opacity-90'
-                  : 'bg-blue-600 text-white hover:bg-blue-700'}`}
-            >
-              {advancing
-                ? <span className="material-symbols-outlined animate-spin text-[16px]">refresh</span>
-                : <span className="material-symbols-outlined text-[16px]">{ADVANCE_ICON[order.orderStatus] || 'check_circle'}</span>}
-              {ADVANCE_LABEL[order.orderStatus] || 'Advance'}
-            </button>
-          ) : null}
+          <button
+            onClick={onOpenScanner}
+            className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg bg-primary text-on-primary font-bold text-sm hover:opacity-90 transition-opacity cursor-pointer"
+          >
+            <span className="material-symbols-outlined text-[18px]">qr_code_scanner</span>
+            Scan to Complete
+          </button>
         </div>
       )}
 
@@ -356,40 +399,43 @@ function KitchenPage() {
   const [orders, setOrders]         = useState([])
   const [loading, setLoading]       = useState(true)
   const [error, setError]           = useState(null)
-  const [advancing, setAdvancing]   = useState({})
   const [scannerOpen, setScannerOpen] = useState(false)
   const [lastRefresh, setLastRefresh] = useState(new Date())
   const [toast, setToast]           = useState(null)
-  const [autoAccept, setAutoAccept] = useState(
-    () => localStorage.getItem('kitchen_autoAccept') === 'true'
-  )
-  const intervalRef       = useRef(null)
-  const autoAdvancingRef  = useRef(new Set())
+  const intervalRef    = useRef(null)
+  const fetchSeqRef    = useRef(0)
+  const location = useLocation()
+  const navigate = useNavigate()
+
+  // Open scanner immediately when navigated here with ?scan=1
+  useEffect(() => {
+    const params = new URLSearchParams(location.search)
+    if (params.get('scan') === '1') {
+      setScannerOpen(true)
+      navigate('/admin/orders', { replace: true })
+    }
+  }, [location.search, navigate])
 
   const showToast = (text, type = 'success') => {
     setToast({ text, type })
     setTimeout(() => setToast(null), 3000)
   }
 
-  const toggleAutoAccept = () => {
-    setAutoAccept(prev => {
-      const next = !prev
-      localStorage.setItem('kitchen_autoAccept', String(next))
-      return next
-    })
-  }
-
   const fetchOrders = useCallback(async (silent = false) => {
+    const seq = ++fetchSeqRef.current
     if (!silent) setLoading(true)
     setError(null)
     try {
       const { data } = await axios.get('/orders')
-      setOrders([...data].sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt)))
+      if (seq !== fetchSeqRef.current) return  // stale — a newer fetch already ran
+      const sorted = [...data].sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt))
+      setOrders(sorted)
       setLastRefresh(new Date())
     } catch {
+      if (seq !== fetchSeqRef.current) return
       setError('Failed to load orders. Check your connection.')
     } finally {
-      setLoading(false)
+      if (seq === fetchSeqRef.current) setLoading(false)
     }
   }, [])
 
@@ -399,48 +445,8 @@ function KitchenPage() {
     return () => clearInterval(intervalRef.current)
   }, [fetchOrders])
 
-  // Auto-accept: whenever orders list updates, advance any pending/received orders to preparing
-  useEffect(() => {
-    if (!autoAccept) return
-    const today = startOfToday()
-    const toAdvance = orders.filter(o =>
-      ['pending', 'received'].includes(o.orderStatus) &&
-      new Date(o.createdAt) >= today &&
-      !autoAdvancingRef.current.has(o._id)
-    )
-    if (toAdvance.length === 0) return
-
-    toAdvance.forEach(o => autoAdvancingRef.current.add(o._id))
-
-    Promise.allSettled(
-      toAdvance.map(o => axios.patch(`/orders/${o._id}/status`, { orderStatus: 'preparing' }))
-    ).then(results => {
-      const updated = {}
-      results.forEach((r, i) => {
-        if (r.status === 'fulfilled') updated[toAdvance[i]._id] = r.value.data
-        else autoAdvancingRef.current.delete(toAdvance[i]._id)
-      })
-      if (Object.keys(updated).length > 0) {
-        setOrders(prev => prev.map(o => updated[o._id] || o))
-        showToast(`${Object.keys(updated).length} order(s) auto-accepted`)
-      }
-    })
-  }, [orders, autoAccept])
-
-  const handleAdvance = async (orderId, newStatus) => {
-    setAdvancing(prev => ({ ...prev, [orderId]: true }))
-    try {
-      const { data } = await axios.patch(`/orders/${orderId}/status`, { orderStatus: newStatus })
-      setOrders(prev => prev.map(o => o._id === orderId ? data : o))
-      showToast(`Order marked as ${STATUS_META[newStatus]?.label || newStatus}`)
-    } catch {
-      showToast('Failed to update order status', 'error')
-    } finally {
-      setAdvancing(prev => ({ ...prev, [orderId]: false }))
-    }
-  }
-
   const handleCollected = (collectedOrder) => {
+    fetchSeqRef.current++  // invalidate any in-flight polling fetch
     setOrders(prev => prev.map(o =>
       o._id === collectedOrder._id
         ? { ...o, orderStatus: 'collected', collectedAt: new Date().toISOString() }
@@ -448,32 +454,15 @@ function KitchenPage() {
     ))
     showToast('Order collected successfully!')
     setScannerOpen(false)
+    fetchOrders(true)  // sync with server immediately
   }
 
   const today = startOfToday()
-  const todayOrders      = orders.filter(o => new Date(o.createdAt) >= today)
-  const pendingOrders    = todayOrders.filter(o => ['pending', 'received'].includes(o.orderStatus))
-  const inProgressOrders = todayOrders.filter(o => o.orderStatus === 'preparing')
-  const readyOrders      = todayOrders.filter(o => ['ready for pickup', 'ready'].includes(o.orderStatus))
-  const collectedToday   = todayOrders.filter(o => ['collected', 'completed'].includes(o.orderStatus))
+  const todayOrders    = orders.filter(o => new Date(o.createdAt) >= today)
+  const readyOrders    = todayOrders.filter(o => ['ready for pickup', 'ready'].includes(o.orderStatus))
+  const collectedToday = todayOrders.filter(o => ['collected', 'completed'].includes(o.orderStatus))
 
   const columns = [
-    {
-      key:        'pending',
-      label:      'Pending',
-      orders:     pendingOrders,
-      dotColor:   'bg-on-surface-variant',
-      badgeClass: 'bg-surface-container-high text-on-surface-variant',
-      cardBorder: '',
-    },
-    {
-      key:        'preparing',
-      label:      'Preparing',
-      orders:     inProgressOrders,
-      dotColor:   'bg-blue-500',
-      badgeClass: 'bg-blue-100 text-blue-700 border border-blue-200',
-      cardBorder: 'border-l-4 border-l-blue-500',
-    },
     {
       key:        'ready',
       label:      'Ready for Collection',
@@ -504,28 +493,6 @@ function KitchenPage() {
               Live · {lastRefresh.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
             </div>
 
-            {/* Auto-accept toggle */}
-            <button
-              onClick={toggleAutoAccept}
-              title={autoAccept ? 'Auto-Accept ON — click to disable' : 'Auto-Accept OFF — click to enable'}
-              className={`flex items-center gap-2 text-sm font-bold px-3 py-2 rounded-lg border transition-colors cursor-pointer
-                ${autoAccept
-                  ? 'bg-green-600 text-white border-green-700 hover:bg-green-700'
-                  : 'bg-surface-container-high text-on-surface-variant border-outline-variant hover:bg-surface-container-highest'}`}
-            >
-              <span className="material-symbols-outlined text-[18px]">
-                {autoAccept ? 'toggle_on' : 'toggle_off'}
-              </span>
-              <span className="hidden sm:inline">Auto-Accept</span>
-            </button>
-
-            <button
-              onClick={() => setScannerOpen(true)}
-              className="flex items-center gap-2 bg-surface-container-high hover:bg-surface-container-highest text-primary font-bold text-sm px-4 py-2 rounded-lg border border-outline-variant transition-colors cursor-pointer"
-            >
-              <span className="material-symbols-outlined text-[18px]">qr_code_scanner</span>
-              <span className="hidden sm:inline">Scan Collection QR</span>
-            </button>
             <button
               onClick={() => fetchOrders()}
               className="w-9 h-9 flex items-center justify-center rounded-lg border border-outline-variant hover:bg-surface-container cursor-pointer text-on-surface-variant"
@@ -537,12 +504,11 @@ function KitchenPage() {
 
         {/* KPI stats bar */}
         <div className="shrink-0 px-4 md:px-8 py-3 border-b border-outline-variant bg-surface">
-          <div className="grid grid-cols-4 gap-3">
+          <div className="grid grid-cols-3 gap-3">
             {[
-              { label: "Today",      value: todayOrders.length,    icon: 'today',         bg: 'bg-primary-fixed' },
-              { label: 'Pending',    value: pendingOrders.length,  icon: 'pending',       bg: 'bg-tertiary-fixed' },
-              { label: 'Preparing',  value: inProgressOrders.length, icon: 'skillet',     bg: 'bg-secondary-fixed' },
-              { label: 'Collected',  value: collectedToday.length, icon: 'check_circle',  bg: 'bg-primary-fixed' },
+              { label: "Today",     value: todayOrders.length,    icon: 'today',        bg: 'bg-primary-fixed' },
+              { label: 'Ready',     value: readyOrders.length,    icon: 'check_circle', bg: 'bg-tertiary-fixed' },
+              { label: 'Collected', value: collectedToday.length, icon: 'inventory_2',  bg: 'bg-secondary-fixed' },
             ].map(k => (
               <div key={k.label} className="flex items-center gap-2 md:gap-3 bg-surface-container-lowest rounded-xl p-2 md:p-3 border border-outline-variant">
                 <div className={`w-7 h-7 md:w-8 md:h-8 rounded-lg ${k.bg} flex items-center justify-center shrink-0`}>
@@ -603,9 +569,7 @@ function KitchenPage() {
                           key={order._id}
                           order={order}
                           cardBorder={col.cardBorder}
-                          onAdvance={handleAdvance}
                           onOpenScanner={() => setScannerOpen(true)}
-                          advancing={!!advancing[order._id]}
                         />
                       ))
                     )}
