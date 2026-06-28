@@ -41,6 +41,7 @@ const OrderSchema = new mongoose.Schema({
     orderNumber:   { type: String },
     pickupCounter:          { type: String, default: 'Counter 1' },
     collectedAt:            { type: Date },
+    readyAt:                { type: Date },
     paymentMethod:          { type: String, enum: ['mpesa', 'wallet'], default: 'mpesa' },
     // M-Pesa payment tracking
     paymentStatus:          { type: String, enum: ['pending', 'paid', 'failed'], default: 'pending' },
