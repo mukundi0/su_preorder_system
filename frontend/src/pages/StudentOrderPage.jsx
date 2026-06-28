@@ -17,6 +17,7 @@ const TAG_ICONS = {
   'contains-nuts': '🥜',
 }
 
+
 export default function StudentOrderPage() {
   const { user } = useAuth()
 
@@ -145,7 +146,8 @@ export default function StudentOrderPage() {
         const { data } = await axios.get('/categories')
         if (!data.error) {
           setCategories([
-            { _id: "all", name: "All items" },
+            { _id: "all",      name: "All items" },
+            { _id: "specials", name: "Specials"  },
             ...data.categories
           ])
         }
@@ -183,8 +185,10 @@ export default function StudentOrderPage() {
   const filteredMenuItems = menuItems.filter((item) => {
     const matchesCategory =
       selectedCategory === 'All items' ||
-      (item.category && String(item.category.name).toLowerCase() === selectedCategory.toLowerCase())
-    const matchesSearch  = item.name.toLowerCase().includes(searchInput.toLowerCase())
+      (selectedCategory === 'Specials'
+        ? item.isFeatured && item.isAvailable
+        : item.category && String(item.category.name).toLowerCase() === selectedCategory.toLowerCase())
+    const matchesSearch = item.name.toLowerCase().includes(searchInput.toLowerCase())
     return matchesCategory && matchesSearch
   })
 
@@ -464,12 +468,17 @@ export default function StudentOrderPage() {
                 <button
                   key={category._id}
                   onClick={() => setSelectedCategory(category.name)}
-                  className={`px-4 md:px-6 py-2 rounded-full text-xs md:text-sm font-semibold whitespace-nowrap transition-colors cursor-pointer ${
+                  className={`px-4 md:px-6 py-2 rounded-full text-xs md:text-sm font-semibold whitespace-nowrap transition-colors cursor-pointer flex items-center gap-1.5 ${
                     category.name.toLowerCase() === selectedCategory.toLowerCase()
-                      ? 'bg-primary text-on-primary'
+                      ? category._id === 'specials'
+                        ? 'bg-secondary text-on-secondary'
+                        : 'bg-primary text-on-primary'
                       : 'bg-surface-container text-on-surface-variant hover:bg-surface-container-high'
                   }`}
                 >
+                  {category._id === 'specials' && (
+                    <span className="material-symbols-outlined text-[14px]" style={{ fontVariationSettings: "'FILL' 1" }}>star</span>
+                  )}
                   {titleCase(category.name)}
                 </button>
               ))}
