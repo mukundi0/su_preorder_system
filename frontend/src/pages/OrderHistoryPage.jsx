@@ -120,7 +120,7 @@ export default function OrderHistoryPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background text-on-background pb-24">
+    <div className="min-h-screen bg-background text-on-background pb-24 md:pb-8">
       <main className="max-w-lg mx-auto px-4 pt-6 flex flex-col gap-6">
         <h1 className="text-2xl font-bold text-on-surface">Order History</h1>
 

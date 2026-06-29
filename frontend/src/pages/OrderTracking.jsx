@@ -206,7 +206,7 @@ export default function OrderTracking() {
   const formattedOrderDate = formatOrderDate(order.createdAt)
 
   return (
-    <div className="min-h-screen bg-background text-on-background font-body-lg antialiased pb-24">
+    <div className="min-h-screen bg-background text-on-background font-body-lg antialiased pb-24 md:pb-8">
       <main className="px-4 pt-6 flex flex-col gap-8 max-w-lg mx-auto">
 
         {/* Order Title Row */}

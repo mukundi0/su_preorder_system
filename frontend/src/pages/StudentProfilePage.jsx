@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react'
 import axios from 'axios'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
-import { useCart } from '../context/CartContext'
 import StudentBottomNav from '../components/StudentBottomNav'
 
 function initials(name) {
@@ -65,48 +64,23 @@ const STATUS_META = {
 
 const ACTIVE_STATUSES = new Set(['pending', 'received', 'preparing', 'ready for pickup', 'ready'])
 
-function formatOrderDate(dateStr) {
-  const d = new Date(dateStr)
-  const now = new Date()
-  const yesterday = new Date(now); yesterday.setDate(now.getDate() - 1)
-  const time = d.toLocaleTimeString('en-KE', { hour: '2-digit', minute: '2-digit' })
-  if (d.toDateString() === now.toDateString()) return `Today, ${time}`
-  if (d.toDateString() === yesterday.toDateString()) return `Yesterday, ${time}`
-  return d.toLocaleDateString('en-KE', { day: 'numeric', month: 'short', year: 'numeric' })
-}
 
 export default function StudentProfilePage() {
   const { user, setUser } = useAuth()
   const navigate = useNavigate()
 
-  // ── Orders ─────────────────────────────────────────────────────────────────
-  const [orders, setOrders] = useState([])
+  // ── Active order only ──────────────────────────────────────────────────────
+  const [activeOrder, setActiveOrder] = useState(null)
 
   useEffect(() => {
     if (!user?._id) return
     axios.get('/orders')
       .then(({ data }) => {
         const mine = data.filter(o => o.user?._id === user._id || o.user === user._id)
-        setOrders(mine)
+        setActiveOrder(mine.find(o => ACTIVE_STATUSES.has(o.orderStatus)) || null)
       })
       .catch(() => {})
   }, [user?._id])
-
-  const activeOrder  = orders.find(o => ACTIVE_STATUSES.has(o.orderStatus))
-  const recentOrders = orders.slice(0, 3)
-
-  const { addItemToCart, clearCart } = useCart()
-
-  const handleReorder = (order) => {
-    clearCart()
-    order.items.forEach(({ item, qty, servingSize }) => {
-      if (!item?._id) return
-      for (let i = 0; i < qty; i++) {
-        addItemToCart({ ...item, servingSize })
-      }
-    })
-    navigate('/student')
-  }
 
   // ── Name form ──────────────────────────────────────────────────────────────
   const [name, setName]             = useState(user?.name || '')
@@ -185,7 +159,7 @@ export default function StudentProfilePage() {
     <div className="min-h-screen bg-background text-on-background pb-28 md:pb-8">
 
       {/* Mobile-only header */}
-      <header className="md:hidden sticky top-0 z-40 flex items-center justify-between px-4 h-16 bg-surface border-b border-outline-variant">
+      <header className="md:hidden sticky top-16 z-40 flex items-center justify-between px-4 h-16 bg-surface border-b border-outline-variant">
         <button
           onClick={() => navigate(-1)}
           className="p-2 -ml-2 text-on-surface-variant hover:bg-surface-container-low rounded-full transition-colors bg-transparent cursor-pointer"
@@ -292,44 +266,20 @@ export default function StudentProfilePage() {
           </div>
         )}
 
-        {/* Recent orders */}
-        {recentOrders.length > 0 && (
-          <div className="bg-surface-container-lowest rounded-2xl border border-outline-variant shadow-sm p-5">
-            <h3 className="font-bold text-primary mb-3 flex items-center gap-2 text-sm">
-              <span className="material-symbols-outlined text-[18px]">receipt_long</span>
-              Recent Orders
-            </h3>
-            <div className="space-y-2">
-              {recentOrders.map(o => {
-                const m = STATUS_META[o.orderStatus] || { label: o.orderStatus, color: 'bg-surface-container text-on-surface-variant', dot: 'bg-gray-400' }
-                return (
-                  <div key={o._id} className="flex items-center gap-2 p-2 rounded-xl hover:bg-surface-container-low transition-colors">
-                    <div className={`w-2 h-2 rounded-full shrink-0 ${m.dot}`} />
-                    <button
-                      onClick={() => navigate(`/orders/${o._id}/track`)}
-                      className="flex-1 min-w-0 text-left bg-transparent border-none cursor-pointer"
-                    >
-                      <p className="text-sm font-bold text-on-surface">{o.orderNumber}</p>
-                      <p className="text-xs text-on-surface-variant">{formatOrderDate(o.createdAt)}</p>
-                    </button>
-                    <div className="flex flex-col items-end gap-1 shrink-0">
-                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${m.color}`}>{m.label}</span>
-                      <span className="text-xs font-semibold text-on-surface">KES {(o.totalAmt || 0).toLocaleString()}</span>
-                    </div>
-                    <button
-                      onClick={() => handleReorder(o)}
-                      className="shrink-0 flex items-center gap-0.5 text-[11px] font-bold text-primary bg-primary/10 hover:bg-primary/20 transition-colors px-2.5 py-1.5 rounded-lg cursor-pointer border-none"
-                      title="Reorder"
-                    >
-                      <span className="material-symbols-outlined text-[14px]">refresh</span>
-                      Reorder
-                    </button>
-                  </div>
-                )
-              })}
-            </div>
+        {/* Order history shortcut */}
+        <button
+          onClick={() => navigate('/orders/history')}
+          className="w-full bg-surface-container-lowest rounded-2xl border border-outline-variant shadow-sm p-4 flex items-center gap-3 text-left hover:bg-surface-container-low transition-colors cursor-pointer"
+        >
+          <div className="w-9 h-9 rounded-lg bg-tertiary-fixed flex items-center justify-center shrink-0">
+            <span className="material-symbols-outlined text-primary text-[18px]" style={{ fontVariationSettings: "'FILL' 1" }}>receipt_long</span>
           </div>
-        )}
+          <div className="flex-1 min-w-0">
+            <p className="text-[10px] text-on-surface-variant font-bold uppercase tracking-wider">Orders</p>
+            <p className="text-sm font-bold text-on-surface">View Order History</p>
+          </div>
+          <span className="material-symbols-outlined text-on-surface-variant text-[18px]">chevron_right</span>
+        </button>
 
         {/* Edit name */}
         <div className="bg-surface-container-lowest rounded-2xl border border-outline-variant shadow-sm p-5">
@@ -520,41 +470,21 @@ export default function StudentProfilePage() {
             </div>
           )}
 
-          {/* Recent orders */}
-          {recentOrders.length > 0 && (
-            <div className="bg-surface-container-lowest rounded-2xl border border-outline-variant shadow-sm p-6">
-              <h3 className="font-bold text-primary mb-4 flex items-center gap-2">
-                <span className="material-symbols-outlined text-[20px]">receipt_long</span>
-                Recent Orders
-              </h3>
-              <div className="divide-y divide-outline-variant">
-                {recentOrders.map(o => {
-                  const m = STATUS_META[o.orderStatus] || { label: o.orderStatus, color: 'bg-surface-container text-on-surface-variant', dot: 'bg-gray-400' }
-                  return (
-                    <div key={o._id} className="flex items-center gap-4 py-3 first:pt-0 last:pb-0 px-2 rounded-lg hover:bg-surface-container-low transition-colors group">
-                      <div className={`w-2.5 h-2.5 rounded-full shrink-0 ${m.dot}`} />
-                      <button
-                        onClick={() => navigate(`/orders/${o._id}/track`)}
-                        className="flex-1 min-w-0 text-left bg-transparent border-none cursor-pointer"
-                      >
-                        <p className="text-sm font-bold text-on-surface">{o.orderNumber}</p>
-                        <p className="text-xs text-on-surface-variant mt-0.5">{formatOrderDate(o.createdAt)}</p>
-                      </button>
-                      <span className={`text-[11px] font-bold px-2.5 py-1 rounded-full ${m.color}`}>{m.label}</span>
-                      <span className="text-sm font-bold text-on-surface shrink-0">KES {(o.totalAmt || 0).toLocaleString()}</span>
-                      <button
-                        onClick={() => handleReorder(o)}
-                        className="shrink-0 flex items-center gap-1 text-sm font-bold text-primary bg-primary/10 hover:bg-primary/20 transition-colors px-3 py-1.5 rounded-lg cursor-pointer border-none opacity-0 group-hover:opacity-100"
-                      >
-                        <span className="material-symbols-outlined text-[16px]">refresh</span>
-                        Reorder
-                      </button>
-                    </div>
-                  )
-                })}
-              </div>
+          {/* Order history shortcut */}
+          <button
+            onClick={() => navigate('/orders/history')}
+            className="w-full bg-surface-container-lowest rounded-2xl border border-outline-variant shadow-sm p-5 flex items-center gap-4 text-left hover:bg-surface-container-low transition-colors cursor-pointer"
+          >
+            <div className="w-10 h-10 rounded-lg bg-tertiary-fixed flex items-center justify-center shrink-0">
+              <span className="material-symbols-outlined text-primary text-[20px]" style={{ fontVariationSettings: "'FILL' 1" }}>receipt_long</span>
             </div>
-          )}
+            <div className="flex-1 min-w-0">
+              <p className="text-[10px] text-on-surface-variant font-bold uppercase tracking-wider">Orders</p>
+              <p className="text-base font-bold text-on-surface">View Order History</p>
+              <p className="text-xs text-on-surface-variant mt-0.5">See all past orders, reorder, and report issues</p>
+            </div>
+            <span className="material-symbols-outlined text-on-surface-variant text-[20px]">chevron_right</span>
+          </button>
 
           {/* Edit name */}
           <div className="bg-surface-container-lowest rounded-2xl border border-outline-variant shadow-sm p-6">
