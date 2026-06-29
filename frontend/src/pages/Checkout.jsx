@@ -11,6 +11,16 @@ function formatCurrency(value) {
   return `KES ${(Number(value) || 0).toLocaleString()}`
 }
 
+function validateMpesaPhone(phone) {
+  const cleaned = phone.replace(/\s/g, '')
+  if (!cleaned) return 'Enter your M-Pesa phone number.'
+  if (!/^\d+$/.test(cleaned)) return 'Phone number must contain digits only.'
+  if (cleaned.length < 10) return `Phone number too short — ${cleaned.length}/10 digits entered.`
+  if (cleaned.length > 10) return `Phone number too long — ${cleaned.length}/10 digits entered.`
+  if (!/^(07|01)/.test(cleaned)) return 'Number must start with 07 or 01 (e.g. 0712345678).'
+  return null
+}
+
 function toPayloadItems(cartItems) {
   return cartItems.map((entry) => ({
     item: entry.item._id,
@@ -24,6 +34,7 @@ export default function Checkout() {
 
   const [paymentMethod, setPaymentMethod] = useState('mpesa')
   const [mpesaPhone, setMpesaPhone] = useState('')
+  const [mpesaPhoneError, setMpesaPhoneError] = useState('')
   const [isProcessing, setIsProcessing] = useState(false)
   const [awaitingMpesa, setAwaitingMpesa] = useState(false)
   const [requestError, setRequestError] = useState('')
@@ -112,9 +123,12 @@ export default function Checkout() {
       setRequestError('Your cart is empty.')
       return
     }
-    if (paymentMethod === 'mpesa' && !mpesaPhone.trim()) {
-      setRequestError('Enter your M-Pesa phone number.')
-      return
+    if (paymentMethod === 'mpesa') {
+      const phoneErr = validateMpesaPhone(mpesaPhone)
+      if (phoneErr) {
+        setMpesaPhoneError(phoneErr)
+        return
+      }
     }
     if (paymentMethod === 'wallet') {
       if (walletBalance <= 0) {
@@ -172,7 +186,7 @@ export default function Checkout() {
   }
 
   return (
-    <div className="min-h-screen bg-background text-on-background font-body-lg antialiased pb-24 md:pb-0 flex flex-col">
+    <div className="min-h-screen bg-background text-on-background font-body-lg antialiased pb-52 md:pb-0 flex flex-col">
       <header className="sticky top-0 z-50 flex justify-between items-center w-full px-4 md:px-12 h-16 bg-surface border-b border-border-subtle">
         <div className="flex items-center gap-2">
           <button
@@ -307,7 +321,7 @@ export default function Checkout() {
                 name="payment_method"
                 value="mpesa"
                 checked={paymentMethod === 'mpesa'}
-                onChange={() => { setPaymentMethod('mpesa'); setRequestError(''); setShowTopUpLink(false) }}
+                onChange={() => { setPaymentMethod('mpesa'); setRequestError(''); setMpesaPhoneError(''); setShowTopUpLink(false) }}
                 className="peer sr-only"
               />
               <div
@@ -336,14 +350,45 @@ export default function Checkout() {
                   </div>
                 </div>
                 {paymentMethod === 'mpesa' && (
-                  <input
-                    type="tel"
-                    placeholder="Phone number e.g. 0712345678"
-                    value={mpesaPhone}
-                    onChange={(e) => setMpesaPhone(e.target.value)}
-                    onClick={(e) => e.stopPropagation()} // prevent radio toggle
-                    className="w-full border border-border-subtle rounded-lg px-3 py-2 text-body-md font-body-md focus:outline-none focus:ring-2 focus:ring-primary bg-surface"
-                  />
+                  <div className="flex flex-col gap-1" onClick={(e) => e.stopPropagation()}>
+                    <input
+                      type="tel"
+                      placeholder="Phone number e.g. 0712345678"
+                      value={mpesaPhone}
+                      maxLength={10}
+                      onChange={(e) => {
+                        const val = e.target.value.replace(/[^\d]/g, '').slice(0, 10)
+                        setMpesaPhone(val)
+                        setMpesaPhoneError(val.length > 0 ? (validateMpesaPhone(val) || '') : '')
+                      }}
+                      onBlur={() => setMpesaPhoneError(validateMpesaPhone(mpesaPhone) || '')}
+                      className={`w-full border rounded-lg px-3 py-2 text-body-md font-body-md focus:outline-none focus:ring-2 bg-surface ${
+                        mpesaPhoneError
+                          ? 'border-red-400 focus:ring-red-400'
+                          : mpesaPhone.length === 10 && !validateMpesaPhone(mpesaPhone)
+                            ? 'border-green-500 focus:ring-green-400'
+                            : 'border-border-subtle focus:ring-primary'
+                      }`}
+                    />
+                    <div className="flex justify-between items-center px-0.5">
+                      {mpesaPhoneError ? (
+                        <p className="text-xs text-red-500 flex items-center gap-1">
+                          <span className="material-symbols-outlined text-[13px]">error</span>
+                          {mpesaPhoneError}
+                        </p>
+                      ) : mpesaPhone.length === 10 && !validateMpesaPhone(mpesaPhone) ? (
+                        <p className="text-xs text-green-600 flex items-center gap-1">
+                          <span className="material-symbols-outlined text-[13px]">check_circle</span>
+                          Valid M-Pesa number
+                        </p>
+                      ) : (
+                        <p className="text-xs text-on-surface-variant">Kenyan number starting with 07 or 01</p>
+                      )}
+                      <span className={`text-xs font-medium tabular-nums ${mpesaPhone.length === 10 ? 'text-green-600' : 'text-on-surface-variant'}`}>
+                        {mpesaPhone.length}/10
+                      </span>
+                    </div>
+                  </div>
                 )}
               </div>
             </label>
@@ -360,7 +405,7 @@ export default function Checkout() {
                 name="payment_method"
                 value="wallet"
                 checked={paymentMethod === 'wallet'}
-                onChange={() => { setPaymentMethod('wallet'); setRequestError(''); setShowTopUpLink(false) }}
+                onChange={() => { setPaymentMethod('wallet'); setRequestError(''); setMpesaPhoneError(''); setShowTopUpLink(false) }}
                 className="peer sr-only"
               />
               <div
@@ -429,7 +474,7 @@ export default function Checkout() {
         </div>
       </main>
 
-      <div className="fixed bottom-0 left-0 w-full bg-white border-t border-border-subtle p-4 pb-[calc(1rem+env(safe-area-inset-bottom,1rem))] z-40 md:hidden shadow-[0_-4px_12px_rgba(0,0,0,0.05)]">
+      <div className="fixed bottom-[4.5rem] left-0 w-full bg-white border-t border-border-subtle p-4 z-40 md:hidden shadow-[0_-4px_12px_rgba(0,0,0,0.05)]">
         <div className="flex justify-between items-center mb-4 px-2">
           <span className="text-body-lg font-body-lg font-bold text-on-background">Total</span>
           <span className="text-headline-sm font-headline-sm font-bold text-primary">

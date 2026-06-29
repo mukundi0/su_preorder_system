@@ -10,6 +10,16 @@ function formatCurrency(value) {
   return `KES ${(Number(value) || 0).toLocaleString()}`
 }
 
+function validateMpesaPhone(phone) {
+  const cleaned = phone.replace(/\s/g, '')
+  if (!cleaned) return 'Enter your M-Pesa phone number.'
+  if (!/^\d+$/.test(cleaned)) return 'Phone number must contain digits only.'
+  if (cleaned.length < 10) return `Phone number too short — ${cleaned.length}/10 digits entered.`
+  if (cleaned.length > 10) return `Phone number too long — ${cleaned.length}/10 digits entered.`
+  if (!/^(07|01)/.test(cleaned)) return 'Number must start with 07 or 01 (e.g. 0712345678).'
+  return null
+}
+
 function formatTxDate(dateStr) {
   const d = new Date(dateStr)
   const now = new Date()
@@ -30,6 +40,7 @@ export default function WalletPage() {
   const [selectedPreset, setSelectedPreset] = useState(500)
   const [customAmount, setCustomAmount] = useState('')
   const [phone, setPhone]               = useState('')
+  const [phoneError, setPhoneError]     = useState('')
   const [isTopping, setIsTopping]       = useState(false)
   const [awaitingMpesa, setAwaitingMpesa] = useState(false)
   const [topUpMsg, setTopUpMsg]         = useState({ type: '', text: '' })
@@ -111,8 +122,9 @@ export default function WalletPage() {
       setTopUpMsg({ type: 'error', text: 'Enter a valid amount' })
       return
     }
-    if (!phone.trim()) {
-      setTopUpMsg({ type: 'error', text: 'Enter your M-Pesa phone number' })
+    const phoneErr = validateMpesaPhone(phone)
+    if (phoneErr) {
+      setPhoneError(phoneErr)
       return
     }
     setIsTopping(true)
@@ -302,15 +314,47 @@ export default function WalletPage() {
                   />
                 </div>
 
-                <div className="relative">
-                  <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-[18px]">phone</span>
-                  <input
-                    type="tel"
-                    value={phone}
-                    onChange={e => setPhone(e.target.value)}
-                    placeholder="M-Pesa number e.g. 0712345678"
-                    className="w-full pl-10 pr-4 py-3 rounded-lg border-2 border-outline-variant focus:border-primary outline-none transition-all text-primary bg-surface text-sm"
-                  />
+                <div className="flex flex-col gap-1">
+                  <div className="relative">
+                    <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-[18px]">phone</span>
+                    <input
+                      type="tel"
+                      value={phone}
+                      maxLength={10}
+                      onChange={e => {
+                        const val = e.target.value.replace(/[^\d]/g, '').slice(0, 10)
+                        setPhone(val)
+                        setPhoneError(val.length > 0 ? (validateMpesaPhone(val) || '') : '')
+                      }}
+                      onBlur={() => setPhoneError(validateMpesaPhone(phone) || '')}
+                      placeholder="M-Pesa number e.g. 0712345678"
+                      className={`w-full pl-10 pr-4 py-3 rounded-lg border-2 outline-none transition-all text-primary bg-surface text-sm ${
+                        phoneError
+                          ? 'border-red-400 focus:border-red-400'
+                          : phone.length === 10 && !validateMpesaPhone(phone)
+                            ? 'border-green-500 focus:border-green-500'
+                            : 'border-outline-variant focus:border-primary'
+                      }`}
+                    />
+                  </div>
+                  <div className="flex justify-between items-center px-0.5">
+                    {phoneError ? (
+                      <p className="text-xs text-red-500 flex items-center gap-1">
+                        <span className="material-symbols-outlined text-[13px]">error</span>
+                        {phoneError}
+                      </p>
+                    ) : phone.length === 10 && !validateMpesaPhone(phone) ? (
+                      <p className="text-xs text-green-600 flex items-center gap-1">
+                        <span className="material-symbols-outlined text-[13px]">check_circle</span>
+                        Valid M-Pesa number
+                      </p>
+                    ) : (
+                      <p className="text-xs text-on-surface-variant">Kenyan number starting with 07 or 01</p>
+                    )}
+                    <span className={`text-xs font-medium tabular-nums ${phone.length === 10 ? 'text-green-600' : 'text-on-surface-variant'}`}>
+                      {phone.length}/10
+                    </span>
+                  </div>
                 </div>
 
                 {topUpMsg.text && (
