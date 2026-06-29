@@ -180,18 +180,11 @@ export async function mpesaCallback(req, res) {
             }
         }
 
-        await WalletTransaction.create({
-          user:        order.user,
-          type:        'debit',
-          amount:      order.totalAmt,
-          description: `Order Payment - #${order.orderNumber}`,
-          reference:   mpesaReceiptNumber,
-          status:      'completed',
-        })
-
-        // Refund trigger for orders
-        console.log(`Order paid. Executing automated test reversal for receipt: ${mpesaReceiptNumber}`)
-        await initiateSandboxReversal({ mpesaReceiptNumber, amount: order.totalAmt })
+        // Refund trigger for sandbox testing only
+        if (process.env.NODE_ENV !== 'production') {
+          console.log(`Order paid. Executing automated test reversal for receipt: ${mpesaReceiptNumber}`)
+          await initiateSandboxReversal({ mpesaReceiptNumber, amount: order.totalAmt })
+        }
       }
 
       //  Case 2: Wallet top-up 
@@ -207,9 +200,11 @@ export async function mpesaCallback(req, res) {
         walletTx.reference = mpesaReceiptNumber
         await walletTx.save()
 
-        // Refund trigger for wallet top-ups
-        console.log(`Wallet topped up. Executing automated test reversal for receipt: ${mpesaReceiptNumber}`)
-        await initiateSandboxReversal({ mpesaReceiptNumber, amount: walletTx.amount })
+        // Refund trigger for sandbox testing only
+        if (process.env.NODE_ENV !== 'production') {
+          console.log(`Wallet topped up. Executing automated test reversal for receipt: ${mpesaReceiptNumber}`)
+          await initiateSandboxReversal({ mpesaReceiptNumber, amount: walletTx.amount })
+        }
       }
 
     } else {
