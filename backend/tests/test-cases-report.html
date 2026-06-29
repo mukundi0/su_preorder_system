@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>SU Preorder System – Test Cases Report</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: Arial, sans-serif; font-size: 10pt; color: #111; background: #fff; }
+
+  .cover {
+    display: flex; flex-direction: column; align-items: center;
+    justify-content: center; height: 100vh; text-align: center; page-break-after: always;
+  }
+  .cover h1 { font-size: 22pt; margin-bottom: 10px; }
+  .cover h2 { font-size: 14pt; font-weight: normal; color: #444; margin-bottom: 30px; }
+  .cover p  { font-size: 11pt; color: #555; margin: 4px 0; }
+
+  h3 { font-size: 12pt; margin: 18px 0 6px; color: #1a3a6b; border-bottom: 2px solid #1a3a6b; padding-bottom: 3px; }
+
+  table { width: 100%; border-collapse: collapse; margin-bottom: 14px; font-size: 8.5pt; }
+  th {
+    background: #1a3a6b; color: #fff;
+    padding: 6px 6px; text-align: left; vertical-align: middle;
+  }
+  td { border: 1px solid #bbb; padding: 5px 6px; vertical-align: top; }
+  tr:nth-child(even) td { background: #f4f7fc; }
+
+  .pass { color: #1a7a2e; font-weight: bold; }
+  .fail { color: #c0392b; font-weight: bold; }
+
+  .section-header td {
+    background: #d0dff5; font-weight: bold; color: #1a3a6b;
+    text-align: left; font-size: 9pt; padding: 5px 6px;
+  }
+
+  .num { width: 26px; text-align: center; }
+  .desc { width: 18%; }
+  .data { width: 22%; }
+  .expected { width: 20%; }
+  .actual { width: 20%; }
+  .status { width: 6%; text-align: center; }
+
+  @media print {
+    .cover { page-break-after: always; }
+    h3 { page-break-before: auto; }
+    table { page-break-inside: auto; }
+    tr { page-break-inside: avoid; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ════════════════ COVER PAGE ════════════════ -->
+<div class="cover">
+  <h1>SU Cafeteria Preorder System</h1>
+  <h2>Software Test Cases Report</h2>
+  <p><strong>Module:</strong> Student &amp; Kitchen Staff Roles</p>
+  <p><strong>Testing Framework:</strong> Vitest v4 + Supertest + MongoDB Memory Server</p>
+  <p><strong>Total Test Cases:</strong> 48 &nbsp;|&nbsp; <strong>Passed:</strong> 48 &nbsp;|&nbsp; <strong>Failed:</strong> 0</p>
+  <p><strong>Date:</strong> 29 June 2026</p>
+</div>
+
+<!-- ════════════════ TABLE ════════════════ -->
+<table>
+  <thead>
+    <tr>
+      <th class="num">#</th>
+      <th class="desc">Test Case Description</th>
+      <th class="data">Test Data</th>
+      <th class="expected">Expected Outcome</th>
+      <th class="actual">Actual Results</th>
+      <th class="status">Status</th>
+    </tr>
+  </thead>
+  <tbody>
+
+    <!-- ───── STUDENT: REGISTRATION ───── -->
+    <tr><td colspan="6" class="section-header">Student – Registration (POST /api/auth/register)</td></tr>
+
+    <tr>
+      <td class="num">1</td>
+      <td>Registration with required fields missing</td>
+      <td><code>{ email: 'a@test.com' }</code><br/>(name, password, role omitted)</td>
+      <td>Server returns a JSON error message indicating all fields are required</td>
+      <td>As expected — error message returned</td>
+      <td class="status pass">Pass</td>
+    </tr>
+
+    <tr>
+      <td class="num">2</td>
+      <td>Registration with an invalid role value</td>
+      <td><code>{ name: 'Test', email: 'a@test.com', password: 'pass123', role: 'superuser' }</code></td>
+      <td>Server returns error "Invalid role"</td>
+      <td>As expected — "Invalid role" error returned</td>
+      <td class="status pass">Pass</td>
+    </tr>
+
+    <tr>
+      <td class="num">3</td>
+      <td>Registration with password shorter than 6 characters</td>
+      <td><code>{ name: 'Test', email: 'a@test.com', password: '123', role: 'student' }</code></td>
+      <td>Server returns error about minimum password length</td>
+      <td>As expected — password length error returned</td>
+      <td class="status pass">Pass</td>
+    </tr>
+
+    <tr>
+      <td class="num">4</td>
+      <td>Registration with an email that already exists</td>
+      <td>Email <code>dup@test.com</code> pre-seeded in DB;<br/>second request uses same email</td>
+      <td>Server returns error "Email already exists!"</td>
+      <td>As expected — duplicate email error returned</td>
+      <td class="status pass">Pass</td>
+    </tr>
+
+    <tr>
+      <td class="num">5</td>
+      <td>Successful student registration – password not exposed</td>
+      <td><code>{ name: 'New Student', email: 'new@test.com', password: 'password123', role: 'student' }</code></td>
+      <td>User record created; response contains email and role but no password field; <code>isVerified</code> is false</td>
+      <td>As expected — user returned without password, unverified</td>
+      <td class="status pass">Pass</td>
+    </tr>
+
+    <tr>
+      <td class="num">6</td>
+      <td>Successful kitchen_staff registration</td>
+      <td><code>{ name: 'Chef', email: 'chef@test.com', password: 'password123', role: 'kitchen_staff' }</code></td>
+      <td>User created with role <code>kitchen_staff</code>; password not exposed in response</td>
+      <td>As expected — kitchen_staff user created</td>
+      <td class="status pass">Pass</td>
+    </tr>
+
+    <!-- ───── STUDENT: LOGIN ───── -->
+    <tr><td colspan="6" class="section-header">Student – Login (POST /api/auth/login)</td></tr>
+
+    <tr>
+      <td class="num">7</td>
+      <td>Login with a non-existent email</td>
+      <td><code>{ email: 'ghost@test.com', password: 'pass123' }</code></td>
+      <td>Server returns error "User does not exist"</td>
+      <td>As expected — user not found error returned</td>
+      <td class="status pass">Pass</td>
+    </tr>
+
+    <tr>
+      <td class="num">8</td>
+      <td>Login with an unverified account</td>
+      <td>User <code>unverified@test.com</code> exists but <code>isVerified = false</code>; correct password sent</td>
+      <td>Server returns error asking user to verify email first</td>
+      <td>As expected — email verification error returned</td>
+      <td class="status pass">Pass</td>
+    </tr>
+
+    <tr>
+      <td class="num">9</td>
+      <td>Login with an incorrect password</td>
+      <td>Verified user exists; request sends <code>password: 'wrongpass'</code></td>
+      <td>Server returns error "Password incorrect!"</td>
+      <td>As expected — wrong password error returned</td>
+      <td class="status pass">Pass</td>
+    </tr>
+
+    <tr>
+      <td class="num">10</td>
+      <td>Successful login for a verified user</td>
+      <td><code>{ email: 'login@test.com', password: 'pass123' }</code> (verified account)</td>
+      <td>Response contains user data (no password), HTTP Set-Cookie header with JWT token is present</td>
+      <td>As expected — user data returned and auth cookie set</td>
+      <td class="status pass">Pass</td>
+    </tr>
+
+    <!-- ───── STUDENT: BROWSE MENU ───── -->
+    <tr><td colspan="6" class="section-header">Student – Browse Menu (GET /api/menuitems)</td></tr>
+
+    <tr>
+      <td class="num">11</td>
+      <td>Fetch menu when no items exist</td>
+      <td>Empty database (no menu items)</td>
+      <td>HTTP 200 with an empty array <code>[]</code></td>
+      <td>As expected — HTTP 200 and empty array returned</td>
+      <td class="status pass">Pass</td>
+    </tr>
+
+    <tr>
+      <td class="num">12</td>
+      <td>Fetch menu items with category populated</td>
+      <td>One menu item <em>Chapati</em> seeded with a category</td>
+      <td>Array of 1 item; item has name <code>Chapati</code> and populated category object</td>
+      <td>As expected — item returned with category populated</td>
+      <td class="status pass">Pass</td>
+    </tr>
+
+    <tr>
+      <td class="num">13</td>
+      <td>Filter menu items by search query</td>
+      <td><em>Rice</em> and <em>Beans</em> seeded; query <code>?search=rice</code></td>
+      <td>Only 1 item returned with name <code>Rice</code></td>
+      <td>As expected — search filter returns matching item only</td>
+      <td class="status pass">Pass</td>
+    </tr>
+
+    <!-- ───── STUDENT: PLACE ORDER ───── -->
+    <tr><td colspan="6" class="section-header">Student – Place Order (POST /api/orders/create)</td></tr>
+
+    <tr>
+      <td class="num">14</td>
+      <td>Create order with an empty cart</td>
+      <td><code>{ userId, items: [], paymentMethod: 'mpesa' }</code></td>
+      <td>Server returns error "Cart is empty!"</td>
+      <td>As expected — empty cart error returned</td>
+      <td class="status pass">Pass</td>
+    </tr>
+
+    <tr>
+      <td class="num">15</td>
+      <td>Create order for a non-existent user</td>
+      <td>Random <code>userId</code> (ObjectId not in DB); valid item included</td>
+      <td>Server returns error "User does not exist!"</td>
+      <td>As expected — user not found error returned</td>
+      <td class="status pass">Pass</td>
+    </tr>
+
+    <tr>
+      <td class="num">16</td>
+      <td>Create wallet order when balance is insufficient</td>
+      <td>Student wallet balance: KES 50; item full price: KES 200; paymentMethod: <code>wallet</code></td>
+      <td>HTTP 400 – "Insufficient wallet balance"</td>
+      <td>As expected — HTTP 400 with balance error returned</td>
+      <td class="status pass">Pass</td>
+    </tr>
+
+    <tr>
+      <td class="num">17</td>
+      <td>Create wallet order successfully – balance deducted and QR generated</td>
+      <td>Student wallet: KES 500; item full price: KES 150; prepTime: 10 min; paymentMethod: <code>wallet</code></td>
+      <td>HTTP 201; order <code>paymentStatus = paid</code>; QR code present; student balance reduced to KES 350</td>
+      <td>As expected — order created, balance deducted to 350, QR code generated</td>
+      <td class="status pass">Pass</td>
+    </tr>
+
+    <tr>
+      <td class="num">18</td>
+      <td>Create M-Pesa order – order stays pending until payment callback</td>
+      <td>Student; item full price: KES 100; paymentMethod: <code>mpesa</code></td>
+      <td>HTTP 201; <code>paymentStatus = pending</code>; <code>orderStatus = pending</code>; no QR code</td>
+      <td>As expected — order in pending state, no QR generated</td>
+      <td class="status pass">Pass</td>
+    </tr>
+
+    <tr>
+      <td class="num">19</td>
+      <td>Create order using half-price serving with quantity of 2</td>
+      <td>Student wallet: KES 1000; item halfPrice: KES 50, fullPrice: KES 100; qty: 2, servingSize: <code>half</code>; paymentMethod: <code>wallet</code></td>
+      <td>HTTP 201; <code>totalAmt = 100</code> (2 × KES 50)</td>
+      <td>As expected — total correctly calculated as KES 100</td>
+      <td class="status pass">Pass</td>
+    </tr>
+
+    <tr>
+      <td class="num">20</td>
+      <td>Wallet order with zero prep time goes straight to "ready for pickup"</td>
+      <td>Student wallet: KES 500; item fullPrice: KES 100, prepTime: 0; paymentMethod: <code>wallet</code></td>
+      <td>HTTP 201; <code>orderStatus = "ready for pickup"</code> immediately</td>
+      <td>As expected — order instantly marked ready for pickup</td>
+      <td class="status pass">Pass</td>
+    </tr>
+
+    <!-- ───── STUDENT: CANCEL ORDER ───── -->
+    <tr><td colspan="6" class="section-header">Student – Cancel Order (POST /api/orders/:id/cancel)</td></tr>
+
+    <tr>
+      <td class="num">21</td>
+      <td>Cancel order without authentication</td>
+      <td>No auth cookie sent; valid order ID in URL</td>
+      <td>HTTP 401 – Unauthorized</td>
+      <td>As expected — HTTP 401 returned</td>
+      <td class="status pass">Pass</td>
+    </tr>
+
+    <tr>
+      <td class="num">22</td>
+      <td>Student cancels their own pending order</td>
+      <td>Student authenticated; their own order with <code>orderStatus = pending</code></td>
+      <td>HTTP 200; <code>success = true</code>; order <code>orderStatus</code> updated to <code>cancelled</code> in DB</td>
+      <td>As expected — order cancelled successfully</td>
+      <td class="status pass">Pass</td>
+    </tr>
+
+    <tr>
+      <td class="num">23</td>
+      <td>Student attempts to cancel another student's order</td>
+      <td>Student A's JWT token; order belongs to Student B</td>
+      <td>HTTP 403 – Forbidden</td>
+      <td>As expected — HTTP 403 returned</td>
+      <td class="status pass">Pass</td>
+    </tr>
+
+    <tr>
+      <td class="num">24</td>
+      <td>Student attempts to cancel an already-collected order</td>
+      <td>Student authenticated; their own order with <code>orderStatus = collected</code></td>
+      <td>HTTP 400 – error indicating order has already been collected and cannot be cancelled</td>
+      <td>As expected — cancellation blocked with HTTP 400</td>
+      <td class="status pass">Pass</td>
+    </tr>
+
+    <tr>
+      <td class="num">25</td>
+      <td>Wallet balance is refunded when a wallet-paid order is cancelled</td>
+      <td>Student wallet: KES 200; order totalAmt: KES 100; <code>paymentMethod = wallet</code>, <code>paymentStatus = paid</code></td>
+      <td>After cancellation, student wallet balance increases to KES 300</td>
+      <td>As expected — wallet balance refunded (KES 200 → KES 300)</td>
+      <td class="status pass">Pass</td>
+    </tr>
+
+    <!-- ───── STUDENT: ORDER TRACKING ───── -->
+    <tr><td colspan="6" class="section-header">Student – Order Tracking (GET /api/orders/:id)</td></tr>
+
+    <tr>
+      <td class="num">26</td>
+      <td>Fetch order details by ID</td>
+      <td>Order with <code>orderStatus = preparing</code> exists in DB; its ID used in URL</td>
+      <td>HTTP 200 with order document matching the requested ID and correct status</td>
+      <td>As expected — order returned with correct ID and status</td>
+      <td class="status pass">Pass</td>
+    </tr>
+
+    <tr>
+      <td class="num">27</td>
+      <td>Fetch order with a non-existent ID</td>
+      <td>Valid ObjectId format but not present in DB</td>
+      <td>HTTP 404 – Order not found</td>
+      <td>As expected — HTTP 404 returned</td>
+      <td class="status pass">Pass</td>
+    </tr>
+
+    <!-- ───── KITCHEN: ROUTE PROTECTION ───── -->
+    <tr><td colspan="6" class="section-header">Kitchen Staff – Route Protection</td></tr>
+
+    <tr>
+      <td class="num">28</td>
+      <td>Update order status without authentication</td>
+      <td>No auth cookie; PATCH <code>/api/orders/:id/status</code> with <code>{ orderStatus: 'preparing' }</code></td>
+      <td>HTTP 401 – Unauthorized</td>
+      <td>As expected — HTTP 401 returned</td>
+      <td class="status pass">Pass</td>
+    </tr>
+
+    <tr>
+      <td class="num">29</td>
+      <td>Scan QR code without authentication</td>
+      <td>No auth cookie; POST <code>/api/orders/verify-qr</code> with order details</td>
+      <td>HTTP 401 – Unauthorized</td>
+      <td>As expected — HTTP 401 returned</td>
+      <td class="status pass">Pass</td>
+    </tr>
+
+    <tr>
+      <td class="num">30</td>
+      <td>Student role cannot update order status (forbidden)</td>
+      <td>Student JWT token; PATCH <code>/api/orders/:id/status</code></td>
+      <td>HTTP 403 – Forbidden (role is not kitchen_staff or admin)</td>
+      <td>As expected — HTTP 403 returned</td>
+      <td class="status pass">Pass</td>
+    </tr>
+
+    <tr>
+      <td class="num">31</td>
+      <td>Student role cannot verify QR (forbidden)</td>
+      <td>Student JWT token; POST <code>/api/orders/verify-qr</code> with a ready order</td>
+      <td>HTTP 403 – Forbidden</td>
+      <td>As expected — HTTP 403 returned</td>
+      <td class="status pass">Pass</td>
+    </tr>
+
+    <!-- ───── KITCHEN: UPDATE ORDER STATUS ───── -->
+    <tr><td colspan="6" class="section-header">Kitchen Staff – Update Order Status (PATCH /api/orders/:id/status)</td></tr>
+
+    <tr>
+      <td class="num">32</td>
+      <td>Update order with an unrecognised status value</td>
+      <td>Kitchen staff token; <code>{ orderStatus: 'burned' }</code></td>
+      <td>HTTP 400 – "Invalid status"</td>
+      <td>As expected — HTTP 400 with invalid status error</td>
+      <td class="status pass">Pass</td>
+    </tr>
+
+    <tr>
+      <td class="num">33</td>
+      <td>Update status on a non-existent order</td>
+      <td>Kitchen staff token; valid ObjectId format not in DB</td>
+      <td>HTTP 404 – Order not found</td>
+      <td>As expected — HTTP 404 returned</td>
+      <td class="status pass">Pass</td>
+    </tr>
+
+    <tr>
+      <td class="num">34</td>
+      <td>Kitchen staff advances order: received → preparing</td>
+      <td>Kitchen staff token; order currently <code>received</code>; send <code>{ orderStatus: 'preparing' }</code></td>
+      <td>HTTP 200; returned order has <code>orderStatus = 'preparing'</code></td>
+      <td>As expected — status updated to preparing</td>
+      <td class="status pass">Pass</td>
+    </tr>
+
+    <tr>
+      <td class="num">35</td>
+      <td>Kitchen staff advances order: preparing → ready for pickup</td>
+      <td>Kitchen staff token; order currently <code>preparing</code>; send <code>{ orderStatus: 'ready for pickup' }</code></td>
+      <td>HTTP 200; returned order has <code>orderStatus = 'ready for pickup'</code></td>
+      <td>As expected — status updated to ready for pickup</td>
+      <td class="status pass">Pass</td>
+    </tr>
+
+    <tr>
+      <td class="num">36</td>
+      <td>Kitchen staff advances order: ready for pickup → collected</td>
+      <td>Kitchen staff token; order currently <code>ready for pickup</code>; send <code>{ orderStatus: 'collected' }</code></td>
+      <td>HTTP 200; returned order has <code>orderStatus = 'collected'</code></td>
+      <td>As expected — status updated to collected</td>
+      <td class="status pass">Pass</td>
+    </tr>
+
+    <tr>
+      <td class="num">37</td>
+      <td>Admin role can also update order status</td>
+      <td>Admin JWT token; order currently <code>received</code>; send <code>{ orderStatus: 'preparing' }</code></td>
+      <td>HTTP 200; status updated to <code>preparing</code></td>
+      <td>As expected — admin can advance order status</td>
+      <td class="status pass">Pass</td>
+    </tr>
+
+    <tr>
+      <td class="num">38</td>
+      <td>Kitchen staff cancels an order</td>
+      <td>Kitchen staff token; order currently <code>received</code>; send <code>{ orderStatus: 'cancelled' }</code></td>
+      <td>HTTP 200; returned order has <code>orderStatus = 'cancelled'</code></td>
+      <td>As expected — order cancelled by kitchen staff</td>
+      <td class="status pass">Pass</td>
+    </tr>
+
+    <!-- ───── KITCHEN: QR VERIFICATION ───── -->
+    <tr><td colspan="6" class="section-header">Kitchen Staff – QR Code Verification (POST /api/orders/verify-qr)</td></tr>
+
+    <tr>
+      <td class="num">39</td>
+      <td>Verify QR for a non-existent order</td>
+      <td>Kitchen staff token; <code>orderId</code> not in DB; <code>orderNumber: 'STR-FAKE'</code></td>
+      <td>HTTP 404 – Order not found</td>
+      <td>As expected — HTTP 404 returned</td>
+      <td class="status pass">Pass</td>
+    </tr>
+
+    <tr>
+      <td class="num">40</td>
+      <td>Verify QR with a mismatched order number (tampered QR)</td>
+      <td>Kitchen staff token; valid <code>orderId</code> (orderNumber: <code>STR-REAL</code>); scan sends <code>orderNumber: 'STR-FAKE'</code></td>
+      <td>HTTP 400 – "QR mismatch"</td>
+      <td>As expected — mismatch rejected with HTTP 400</td>
+      <td class="status pass">Pass</td>
+    </tr>
+
+    <tr>
+      <td class="num">41</td>
+      <td>Verify QR for an already-collected order</td>
+      <td>Kitchen staff token; order with <code>orderStatus = collected</code>; correct orderNumber sent</td>
+      <td>HTTP 400 – "Already collected"</td>
+      <td>As expected — duplicate collection rejected</td>
+      <td class="status pass">Pass</td>
+    </tr>
+
+    <tr>
+      <td class="num">42</td>
+      <td>Verify QR when order is not yet ready for collection</td>
+      <td>Kitchen staff token; order with <code>orderStatus = preparing</code>; correct orderNumber sent</td>
+      <td>HTTP 400 – "Order is not ready for collection yet"</td>
+      <td>As expected — premature scan rejected</td>
+      <td class="status pass">Pass</td>
+    </tr>
+
+    <tr>
+      <td class="num">43</td>
+      <td>Valid QR scan marks order as collected and records timestamp</td>
+      <td>Kitchen staff token; order with <code>orderStatus = 'ready for pickup'</code>; correct <code>orderId</code> and <code>orderNumber: 'STR-VALID'</code></td>
+      <td>HTTP 200; <code>success = true</code>; DB order updated to <code>collected</code> with <code>collectedAt</code> timestamp set</td>
+      <td>As expected — order marked collected with timestamp recorded</td>
+      <td class="status pass">Pass</td>
+    </tr>
+
+    <tr>
+      <td class="num">44</td>
+      <td>Valid QR scan also accepts "ready" status (not only "ready for pickup")</td>
+      <td>Kitchen staff token; order with <code>orderStatus = 'ready'</code>; correct orderNumber sent</td>
+      <td>HTTP 200; <code>success = true</code>; order updated to <code>collected</code></td>
+      <td>As expected — "ready" status accepted for collection</td>
+      <td class="status pass">Pass</td>
+    </tr>
+
+    <!-- ───── KITCHEN: VIEW ORDERS ───── -->
+    <tr><td colspan="6" class="section-header">Kitchen Staff – View Orders (GET /api/orders, GET /api/orders/:id)</td></tr>
+
+    <tr>
+      <td class="num">45</td>
+      <td>Fetch all orders in the system</td>
+      <td>2 orders seeded in DB; GET <code>/api/orders</code></td>
+      <td>HTTP 200 with an array of 2 orders</td>
+      <td>As expected — both orders returned</td>
+      <td class="status pass">Pass</td>
+    </tr>
+
+    <tr>
+      <td class="num">46</td>
+      <td>Fetch a specific order by ID with user and items populated</td>
+      <td>Kitchen staff token; 1 order seeded with a known user and menu item; GET <code>/api/orders/:id</code></td>
+      <td>HTTP 200; response contains correct <code>_id</code>; nested <code>user.email</code> and <code>items[0].item.name</code> are populated</td>
+      <td>As expected — order returned with user and item details populated</td>
+      <td class="status pass">Pass</td>
+    </tr>
+
+    <tr>
+      <td class="num">47</td>
+      <td>Fetch a specific order using a non-existent ID</td>
+      <td>Valid ObjectId format; no matching order in DB</td>
+      <td>HTTP 404 – Order not found</td>
+      <td>As expected — HTTP 404 returned</td>
+      <td class="status pass">Pass</td>
+    </tr>
+
+    <tr>
+      <td class="num">48</td>
+      <td>Orders are returned sorted newest first</td>
+      <td>Order <em>STR-FIRST</em> created; 10 ms delay; order <em>STR-SECOND</em> created; GET <code>/api/orders</code></td>
+      <td>HTTP 200; array has 2 items; <em>STR-SECOND</em> appears at index 0 (newest first), <em>STR-FIRST</em> at index 1</td>
+      <td>As expected — newest order appears first in the list</td>
+      <td class="status pass">Pass</td>
+    </tr>
+
+  </tbody>
+</table>
+
+<p style="margin-top:12px; font-size:8pt; color:#555; text-align:center;">
+  Generated automatically from Vitest test suite &mdash; SU Cafeteria Preorder System &mdash; 29 June 2026
+</p>
+
+</body>
+</html>
