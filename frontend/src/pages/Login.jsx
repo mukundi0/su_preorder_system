@@ -172,6 +172,7 @@ function Login() {
           onError={() => setError("Login Failed")}
           text="continue_with"
           hosted_domain="strathmore.edu"
+          size='medium'
         />
 
         <div className="mt-8">
