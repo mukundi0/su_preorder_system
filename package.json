@@ -1,8 +1,22 @@
 {
-  "dependencies": {
-    "express": "^5.2.1"
+  "name": "su_preorder_system",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "build": "npm install --prefix backend && npm install --prefix frontend && npm run build --prefix frontend",
+    "start": "npm run start --prefix backend"
   },
-  "devDependencies": {
-    "nodemon": "^3.1.14"
-  }
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mukundi0/su_preorder_system.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/mukundi0/su_preorder_system/issues"
+  },
+  "homepage": "https://github.com/mukundi0/su_preorder_system#readme"
 }

@@ -28,7 +28,7 @@ import IssuesPage from "./pages/IssuesPage"
 
 
 // Set axios defaults
-const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000/api/"
+const BASE_URL = import.meta.env.MODE == "development" ? "http://localhost:8000/api/" : "/api"
 
 axios.defaults.baseURL = BASE_URL
 axios.defaults.withCredentials = true

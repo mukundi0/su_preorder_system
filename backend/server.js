@@ -6,6 +6,7 @@ import express from "express"
 import dotenv from "dotenv"
 import cookieParser from "cookie-parser"
 import cors from "cors"
+import path from "path"
 
 import {connectDB} from './config/db.js'
 import authRoutes from './routes/authRoutes.js'
@@ -26,19 +27,18 @@ dotenv.config()
 const app = express()
 
 // CORS
-app.use(cors({
-    origin: process.env.FRONTEND_URL,
-    credentials: true
-}))
+if(process.env.NODE_ENV !== "production") {
+    app.use(cors({
+        origin: process.env.FRONTEND_URL,
+        credentials: true
+    }))
+}
+
 
 // Middleware
 app.use(express.json()) // parse JSON bodies (req.body)
 app.use(cookieParser()) // for cookies
 app.use(express.urlencoded({ extended: true })) // Handing HTML forms
-
-app.get('/', (req, res) => {
-    res.send("Welcome to the SU preorder System")
-})
 
 // Auth
 app.use('/api/auth', authRoutes);
@@ -72,6 +72,16 @@ app.use('/api/ratings', ratingRoutes)
 
 
 const PORT = process.env.PORT || 8000
+const __dirname = path.resolve()
+
+if(process.env.NODE_ENV === "production") {
+    app.use(express.static(path.join(__dirname, "../frontend/dist")))
+
+    app.get(/^(?!\/api).+/, (req, res) => {
+        res.sendFile(path.join(__dirname, "../frontend", "dist", "index.html"))
+    })
+}
+
 connectDB().then(() => {
     app.listen(PORT, () => {
         console.log(`Listening on port ${PORT}`)
