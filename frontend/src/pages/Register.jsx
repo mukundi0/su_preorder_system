@@ -129,6 +129,7 @@ function Register() {
               onError={() => setError("Login Failed")}
               text="continue_with"
               hosted_domain="strathmore.edu"
+              size="medium"
             />
 
             <div className="flex items-center gap-3 mb-5">
