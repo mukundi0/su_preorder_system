@@ -15,19 +15,21 @@ const UserSchema = mongoose.Schema({
     },
     role: {
         type: String,
-        enum: ["student_staff", "kitchen_staff", "admin"],
-        default: "student_staff"
+        enum: ["student", "kitchen_staff", "admin"],
+        default: "student"
     },
     walletBalance: {
         type: Number,
         default: 0
     },
-    password: String,
+    password: String, // optional for Google Users
     isVerified: {
         type: Boolean,
         default: false,
     },
     verificationToken: String,
+    verificationTokenExpires: Date,
+    googleId: String
 }, { timestamps: true })
 
 
@@ -38,6 +40,8 @@ UserSchema.methods.getVerificationToken = function() {
         .createHash('sha256')
         .update(token)
         .digest("hex")
+
+    this.verificationTokenExpires = new Date(Date.now() + 15 * 60 * 1000)
 
     return token;
 }
