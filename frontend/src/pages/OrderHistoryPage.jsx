@@ -1,37 +1,38 @@
 import { useState, useEffect } from 'react'
 import axios from 'axios'
 import { useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { useAuth } from '../context/AuthContext'
 import { useCart } from '../context/CartContext'
 import StudentBottomNav from '../components/StudentBottomNav'
 
-const STATUS_META = {
-  pending:            { label: 'Pending',      color: 'bg-yellow-100 text-yellow-800' },
-  received:           { label: 'Received',     color: 'bg-blue-100 text-blue-800' },
-  preparing:          { label: 'Preparing',    color: 'bg-orange-100 text-orange-800' },
-  'ready for pickup': { label: 'Ready',        color: 'bg-green-100 text-green-700' },
-  ready:              { label: 'Ready',        color: 'bg-green-100 text-green-700' },
-  collected:          { label: 'Collected',    color: 'bg-surface-container text-on-surface-variant' },
-  completed:          { label: 'Collected',    color: 'bg-surface-container text-on-surface-variant' },
-  cancelled:          { label: 'Cancelled',    color: 'bg-red-100 text-red-700' },
+const STATUS_COLORS = {
+  pending:            'bg-yellow-100 text-yellow-800',
+  received:           'bg-blue-100 text-blue-800',
+  preparing:          'bg-orange-100 text-orange-800',
+  'ready for pickup': 'bg-green-100 text-green-700',
+  ready:              'bg-green-100 text-green-700',
+  collected:          'bg-surface-container text-on-surface-variant',
+  completed:          'bg-surface-container text-on-surface-variant',
+  cancelled:          'bg-red-100 text-red-700',
 }
 
-const ISSUE_CATEGORIES = [
-  { value: 'wrong_order',   label: 'Wrong Order',     icon: 'swap_horiz' },
-  { value: 'missing_item',  label: 'Missing Item',    icon: 'remove_shopping_cart' },
-  { value: 'food_quality',  label: 'Food Quality',    icon: 'sentiment_dissatisfied' },
-  { value: 'payment',       label: 'Payment Problem', icon: 'payment' },
-  { value: 'other',         label: 'Other',           icon: 'help_outline' },
-]
+const ISSUE_CATEGORY_ICONS = {
+  wrong_order:  'swap_horiz',
+  missing_item: 'remove_shopping_cart',
+  food_quality: 'sentiment_dissatisfied',
+  payment:      'payment',
+  other:        'help_outline',
+}
 
 function formatKES(n) { return `KES ${Number(n).toLocaleString('en-KE')}` }
 
-function relativeDate(dateStr) {
+function relativeDate(dateStr, t) {
   const d = new Date(dateStr)
   const today = new Date(); today.setHours(0,0,0,0)
   const yesterday = new Date(today); yesterday.setDate(yesterday.getDate() - 1)
-  if (d >= today) return 'Today'
-  if (d >= yesterday) return 'Yesterday'
+  if (d >= today) return t('order.today')
+  if (d >= yesterday) return t('order.yesterday')
   return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
 }
 
@@ -43,6 +44,15 @@ export default function OrderHistoryPage() {
   const { user } = useAuth()
   const navigate = useNavigate()
   const { addItemToCart } = useCart()
+  const { t } = useTranslation()
+
+  const ISSUE_CATEGORIES = [
+    { value: 'wrong_order',   label: t('report.categories.wrong_order'),  icon: ISSUE_CATEGORY_ICONS.wrong_order },
+    { value: 'missing_item',  label: t('report.categories.missing_item'), icon: ISSUE_CATEGORY_ICONS.missing_item },
+    { value: 'food_quality',  label: t('report.categories.food_quality'), icon: ISSUE_CATEGORY_ICONS.food_quality },
+    { value: 'payment',       label: t('report.categories.payment'),      icon: ISSUE_CATEGORY_ICONS.payment },
+    { value: 'other',         label: t('report.categories.other'),        icon: ISSUE_CATEGORY_ICONS.other },
+  ]
 
   const [orders, setOrders] = useState([])
   const [loading, setLoading] = useState(true)
@@ -68,7 +78,7 @@ export default function OrderHistoryPage() {
   }, [user?._id])
 
   const grouped = orders.reduce((acc, o) => {
-    const label = relativeDate(o.createdAt)
+    const label = relativeDate(o.createdAt, t)
     if (!acc[label]) acc[label] = []
     acc[label].push(o)
     return acc
@@ -86,7 +96,7 @@ export default function OrderHistoryPage() {
         servingSize: entry.servingSize || 'full',
       })
     })
-    setReorderToast(`Added ${order.items?.length ?? 0} item(s) to your order`)
+    setReorderToast(`${order.items?.length ?? 0} ${t('cart.items')}`)
     setTimeout(() => setReorderToast(''), 3000)
     navigate('/student')
   }
@@ -122,7 +132,7 @@ export default function OrderHistoryPage() {
   return (
     <div className="min-h-screen bg-background text-on-background pb-24 md:pb-8">
       <main className="max-w-lg mx-auto px-4 pt-6 flex flex-col gap-6">
-        <h1 className="text-2xl font-bold text-on-surface">Order History</h1>
+        <h1 className="text-2xl font-bold text-on-surface">{t('order.orderHistory')}</h1>
 
         {loading && (
           <div className="flex justify-center py-16">
@@ -133,10 +143,10 @@ export default function OrderHistoryPage() {
         {!loading && orders.length === 0 && (
           <div className="flex flex-col items-center py-20 gap-3 text-center text-on-surface-variant">
             <span className="material-symbols-outlined text-5xl opacity-40">receipt_long</span>
-            <p className="font-semibold">No orders yet</p>
-            <p className="text-sm">Your order history will appear here.</p>
+            <p className="font-semibold">{t('order.noOrders')}</p>
+            <p className="text-sm">{t('order.noOrdersHint')}</p>
             <button onClick={() => navigate('/student')} className="mt-2 px-6 py-2.5 bg-primary text-on-primary rounded-xl font-bold text-sm cursor-pointer border-none">
-              Browse Menu
+              {t('home.browseMenu')}
             </button>
           </div>
         )}
@@ -145,7 +155,9 @@ export default function OrderHistoryPage() {
           <section key={label} className="flex flex-col gap-2">
             <p className="text-xs font-bold uppercase tracking-widest text-on-surface-variant">{label}</p>
             {dayOrders.map(order => {
-              const meta = STATUS_META[order.orderStatus] || { label: order.orderStatus, color: 'bg-surface-container text-on-surface-variant' }
+              const statusColor = STATUS_COLORS[order.orderStatus] || 'bg-surface-container text-on-surface-variant'
+              const statusKey = order.orderStatus?.replace(/\s+/g, '_').replace('ready_for_pickup', 'ready')
+              const statusLabel = t(`order.status_${statusKey}`, { defaultValue: order.orderStatus })
               const isActive = !['collected', 'completed', 'cancelled'].includes(order.orderStatus)
               const isDone = ['collected', 'completed'].includes(order.orderStatus)
               return (
@@ -161,20 +173,20 @@ export default function OrderHistoryPage() {
                       <span className="font-bold text-primary text-sm">#{order.orderNumber}</span>
                       <div className="flex items-center gap-2">
                         <span className="text-xs text-on-surface-variant">{formatTime(order.createdAt)}</span>
-                        <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${meta.color}`}>{meta.label}</span>
+                        <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${statusColor}`}>{statusLabel}</span>
                       </div>
                     </div>
                     <p className="text-sm text-on-surface line-clamp-1">
                       {order.items?.map(i => `${i.qty}× ${i.item?.name || 'Item'}`).join(', ') || '—'}
                     </p>
                     <div className="flex items-center justify-between">
-                      <span className="text-xs text-on-surface-variant capitalize">{order.paymentMethod === 'mpesa' ? 'M-Pesa' : 'Wallet'}</span>
+                      <span className="text-xs text-on-surface-variant capitalize">{order.paymentMethod === 'mpesa' ? 'M-Pesa' : t('checkout.wallet')}</span>
                       <span className="font-bold text-primary text-sm">{formatKES(order.totalAmt)}</span>
                     </div>
                     {isActive && (
                       <div className="flex items-center gap-1 text-xs text-primary font-semibold mt-0.5">
                         <span className="material-symbols-outlined text-[14px]">open_in_new</span>
-                        Track order
+                        {t('order.trackOrder')}
                       </div>
                     )}
                   </button>
@@ -186,14 +198,14 @@ export default function OrderHistoryPage() {
                         className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg bg-primary text-on-primary text-xs font-bold cursor-pointer border-none hover:opacity-90 transition-opacity"
                       >
                         <span className="material-symbols-outlined text-[14px]">replay</span>
-                        Re-order
+                        {t('order.reorder')}
                       </button>
                       <button
                         onClick={() => openReport(order)}
                         className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg border border-outline-variant text-on-surface-variant text-xs font-bold cursor-pointer bg-transparent hover:bg-surface-container transition-colors"
                       >
                         <span className="material-symbols-outlined text-[14px]">flag</span>
-                        Report Issue
+                        {t('order.reportIssue')}
                       </button>
                     </div>
                   )}
@@ -229,7 +241,7 @@ export default function OrderHistoryPage() {
                   <span className="material-symbols-outlined text-primary text-[20px]">support_agent</span>
                 </div>
                 <div>
-                  <h2 className="font-bold text-on-surface text-base">Report an Issue</h2>
+                  <h2 className="font-bold text-on-surface text-base">{t('report.title')}</h2>
                   <p className="text-xs text-on-surface-variant">Order #{reportOrder.orderNumber}</p>
                 </div>
               </div>
@@ -246,21 +258,19 @@ export default function OrderHistoryPage() {
                 <div className="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center">
                   <span className="material-symbols-outlined text-green-600 text-4xl" style={{ fontVariationSettings: "'FILL' 1" }}>check_circle</span>
                 </div>
-                <h3 className="font-bold text-on-surface text-lg">Issue Reported</h3>
-                <p className="text-sm text-on-surface-variant max-w-xs">
-                  We've received your report and will look into it shortly. Thank you for letting us know.
-                </p>
+                <h3 className="font-bold text-on-surface text-lg">{t('report.successTitle')}</h3>
+                <p className="text-sm text-on-surface-variant max-w-xs">{t('report.successMessage')}</p>
                 <button
                   onClick={() => setReportOrder(null)}
                   className="mt-2 px-8 py-3 bg-primary text-on-primary rounded-xl font-bold text-sm hover:bg-primary-container transition-colors cursor-pointer border-none"
                 >
-                  Done
+                  {t('report.done')}
                 </button>
               </div>
             ) : (
               <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
                 <div>
-                  <p className="text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-3">What's the issue?</p>
+                  <p className="text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-3">{t('report.category')}</p>
                   <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                     {ISSUE_CATEGORIES.map(({ value, label, icon }) => (
                       <button
@@ -282,13 +292,13 @@ export default function OrderHistoryPage() {
                 </div>
 
                 <div>
-                  <p className="text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-2">Description</p>
+                  <p className="text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-2">{t('report.description')}</p>
                   <textarea
                     value={issueDescription}
                     onChange={e => setIssueDescription(e.target.value)}
                     rows={4}
                     maxLength={1000}
-                    placeholder="Describe the issue in detail so we can resolve it quickly…"
+                    placeholder={t('report.descriptionPlaceholder')}
                     className="w-full rounded-xl border-2 border-outline-variant focus:border-primary outline-none px-4 py-3 text-sm text-on-surface bg-surface resize-none transition-colors"
                   />
                   <p className="text-right text-[10px] text-on-surface-variant mt-1">{issueDescription.length}/1000</p>
@@ -305,7 +315,7 @@ export default function OrderHistoryPage() {
                   disabled={isSubmitting}
                   className="w-full py-3.5 bg-primary text-on-primary rounded-xl font-bold text-sm hover:bg-primary-container transition-colors cursor-pointer border-none disabled:opacity-60 disabled:cursor-not-allowed mb-2"
                 >
-                  {isSubmitting ? 'Submitting…' : 'Submit Report'}
+                  {isSubmitting ? t('report.submitting') : t('report.submit')}
                 </button>
               </div>
             )}
