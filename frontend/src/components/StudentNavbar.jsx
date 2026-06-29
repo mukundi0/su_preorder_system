@@ -1,8 +1,9 @@
 import { useState } from 'react'
 import axios from "axios"
 import { NavLink, useNavigate, useLocation } from "react-router-dom"
+import { useTranslation } from 'react-i18next'
 import { useAuth } from "../context/AuthContext"
-
+import LanguageSwitcher from './LanguageSwitcher'
 import SU_LOGO from '../assets/sulogo.png'
 
 const AVATAR_COLORS = [
@@ -117,6 +118,7 @@ function StudentNavbar() {
   const { user } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
+  const { t } = useTranslation()
   const [showReport, setShowReport] = useState(false)
 
   const handleLogout = async () => {
@@ -131,7 +133,9 @@ function StudentNavbar() {
   return (
     <>
       <header className="sticky top-0 z-50 flex justify-between items-center w-full px-4 md:px-12 h-16 bg-surface border-b border-outline-variant">
-        <div className="flex items-center gap-4 md:gap-8">
+        <div className="flex items-center gap-3 md:gap-6">
+          <LanguageSwitcher />
+
           <div className="flex items-center text-primary font-bold cursor-pointer" onClick={() => navigate('/student')}>
             <img src={SU_LOGO} alt="Strathmore University Logo" className="h-10 w-auto object-contain md:hidden" />
             <div className="hidden md:flex items-center gap-2 text-lg">
@@ -151,7 +155,7 @@ function StudentNavbar() {
                 }`
               }
             >
-              Menu
+              {t('nav.menu')}
             </NavLink>
 
             <NavLink
@@ -164,7 +168,7 @@ function StudentNavbar() {
                 }`
               }
             >
-              Orders
+              {t('nav.orders')}
             </NavLink>
 
             <NavLink
@@ -177,7 +181,7 @@ function StudentNavbar() {
                 }`
               }
             >
-              Wallet
+              {t('nav.wallet')}
             </NavLink>
           </nav>
         </div>
@@ -185,7 +189,8 @@ function StudentNavbar() {
         <div className="flex items-center gap-2">
           <button
             onClick={() => setShowReport(true)}
-            title="Report an issue"
+            title={t('nav.report')}
+            aria-label={t('nav.report')}
             className="w-9 h-9 flex items-center justify-center rounded-full text-red-500 hover:bg-red-50 border-none bg-transparent cursor-pointer transition-colors"
           >
             <span className="material-symbols-outlined text-[20px]" style={{ fontVariationSettings: "'FILL' 1" }}>flag</span>
@@ -211,7 +216,8 @@ function StudentNavbar() {
           <button
             onClick={handleLogout}
             className="text-on-surface-variant hover:bg-surface-container-low transition-colors rounded-full p-2 bg-transparent cursor-pointer"
-            title="Logout"
+            title={t('nav.logout')}
+            aria-label={t('nav.logout')}
           >
             <span className="material-symbols-outlined">logout</span>
           </button>

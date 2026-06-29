@@ -1,15 +1,17 @@
 import { useNavigate, useLocation } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 
 const NAV_ITEMS = [
-  { id: 'menu',    label: 'Menu',    icon: 'restaurant',             path: '/student' },
-  { id: 'orders',  label: 'Orders',  icon: 'receipt_long',           path: '/orders/history' },
-  { id: 'wallet',  label: 'Wallet',  icon: 'account_balance_wallet', path: '/wallet' },
-  { id: 'profile', label: 'Profile', icon: 'person',                 path: '/profile' },
+  { id: 'menu',    icon: 'restaurant',             path: '/student' },
+  { id: 'orders',  icon: 'receipt_long',           path: '/orders/history' },
+  { id: 'wallet',  icon: 'account_balance_wallet', path: '/wallet' },
+  { id: 'profile', icon: 'person',                 path: '/profile' },
 ]
 
 export default function StudentBottomNav({ active }) {
-  const navigate  = useNavigate()
-  const location  = useLocation()
+  const navigate = useNavigate()
+  const location = useLocation()
+  const { t } = useTranslation()
 
   function isActive(item) {
     if (active) return active === item.id
@@ -25,6 +27,7 @@ export default function StudentBottomNav({ active }) {
           <button
             key={item.id}
             onClick={() => item.path && navigate(item.path)}
+            aria-label={t(`nav.${item.id}`)}
             className="flex flex-col items-center gap-0.5 bg-transparent border-none cursor-pointer min-w-[56px]"
           >
             <span
@@ -46,7 +49,7 @@ export default function StudentBottomNav({ active }) {
                 active_ ? 'text-secondary-container' : 'text-on-surface-variant'
               }`}
             >
-              {item.label}
+              {t(`nav.${item.id}`)}
             </span>
           </button>
         )
