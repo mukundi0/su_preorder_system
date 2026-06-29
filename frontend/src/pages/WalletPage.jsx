@@ -75,11 +75,11 @@ export default function WalletPage() {
     setTopUpMsg({ type: 'info', text: 'Check your phone — enter your M-Pesa PIN to complete the top-up.' })
 
     const snapshotBalance = balance
-    const mpesaInterval = setInterval(async () => {
+    pollingRef.current = setInterval(async () => {
       try {
         const { data } = await axios.get('/wallet')
         if (data.balance > snapshotBalance) {
-          clearInterval(mpesaInterval)
+          stopBackgroundRefresh()
           clearTimeout(timeoutId)
           setBalance(data.balance)
           setTransactions(data.transactions)
@@ -95,7 +95,7 @@ export default function WalletPage() {
 
     // Give up after 2 minutes
     const timeoutId = setTimeout(() => {
-      clearInterval(mpesaInterval)
+      stopBackgroundRefresh()
       setAwaitingMpesa(false)
       setTopUpMsg((prev) =>
         prev.type !== 'success'
