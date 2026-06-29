@@ -14,7 +14,7 @@ export async function getAllOrders(req, res) {
             })
             .populate({
                 path: 'items.item'
-            }).sort({ date: -1 })
+            }).sort({ createdAt: -1 })
 
         res.json(orders)
     } catch (error) {
@@ -32,6 +32,8 @@ export async function getOrder(req, res) {
                 { path: 'user'},
                 { path: 'items.item' }
             ])
+
+        if (!order) return res.status(404).json({ error: 'Order not found' })
 
         res.set('Cache-Control', 'no-store')
         res.json(order)
@@ -408,6 +410,9 @@ export async function verifyQR(req, res) {
 
         if (order.orderStatus === 'collected')
             return res.status(400).json({ message: 'Already collected' })
+
+        if (!['ready', 'ready for pickup'].includes(order.orderStatus))
+            return res.status(400).json({ message: 'Order is not ready for collection yet' })
 
         order.orderStatus = 'collected'
         order.collectedAt = new Date()

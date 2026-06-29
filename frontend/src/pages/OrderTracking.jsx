@@ -131,9 +131,11 @@ export default function OrderTracking() {
 
   useEffect(() => {
     fetchOrder()
+    const TERMINAL = ['collected', 'completed', 'cancelled']
+    if (order && TERMINAL.includes(order.orderStatus)) return
     const interval = setInterval(fetchOrder, 5000)
     return () => clearInterval(interval)
-  }, [orderId])
+  }, [orderId, order?.orderStatus])
 
   useEffect(() => {
     if (order && ['collected', 'completed'].includes(order.orderStatus)) {
@@ -184,7 +186,8 @@ export default function OrderTracking() {
       setShowCancelConfirm(false)
       setTimeout(() => navigate('/student'), 3000)
     } catch (e) {
-      alert(e?.response?.data?.error || 'Failed to cancel order')
+      setError(e?.response?.data?.error || 'Failed to cancel order')
+      setShowCancelConfirm(false)
     } finally {
       setIsCancelling(false)
     }
