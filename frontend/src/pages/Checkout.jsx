@@ -41,7 +41,6 @@ export default function Checkout() {
   const [successMessage, setSuccessMessage] = useState('')
   const [walletBalance, setWalletBalance] = useState(0)
   const [paymentResult, setPaymentResult] = useState(null) // 'success' | 'failed' | null
-  const [resultOrderId, setResultOrderId] = useState(null)
   const [showTopUpLink, setShowTopUpLink] = useState(false)
 
   useEffect(() => {
@@ -74,7 +73,6 @@ export default function Checkout() {
 
   function showSuccess(orderId) {
     clearCart()
-    setResultOrderId(orderId)
     setPaymentResult('success')
     setTimeout(() => navigate(`/orders/${orderId}/track`), 3000)
   }
@@ -154,7 +152,6 @@ export default function Checkout() {
     try {
       // Step 1: Create the order (pending for M-Pesa, received for wallet)
       const { data: order } = await axios.post('/orders/create', {
-        userId: user._id,
         items:  toPayloadItems(cart),
         paymentMethod,
       })

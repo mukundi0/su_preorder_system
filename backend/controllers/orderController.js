@@ -6,9 +6,14 @@ import generateQRCode from "../utils/generateQR.js"
 import { sendOrderReady } from "../utils/sendEmail.js"
 import { v4 as uuidv4 } from "uuid"
 
+const STAFF_ROLES = ['kitchen_staff', 'admin']
+
 export async function getAllOrders(req, res) {
     try {
-        const orders = await Order.find()
+        // Staff see every order; students only their own
+        const filter = STAFF_ROLES.includes(req.user.role) ? {} : { user: req.user.id }
+
+        const orders = await Order.find(filter)
             .populate({
                 path: 'user'
             })
@@ -35,6 +40,11 @@ export async function getOrder(req, res) {
 
         if (!order) return res.status(404).json({ error: 'Order not found' })
 
+        const isOwner = String(order.user?._id) === String(req.user.id)
+        if (!isOwner && !STAFF_ROLES.includes(req.user.role)) {
+            return res.status(403).json({ error: 'Forbidden' })
+        }
+
         res.set('Cache-Control', 'no-store')
         res.json(order)
     } catch (error) {
@@ -43,63 +53,71 @@ export async function getOrder(req, res) {
     }
 }
 
+// Batch-fetch the menu items and price the order.
+// Returns { error } on bad input, otherwise { totalAmt, maxPrepTime }.
+async function priceOrderItems(items) {
+    const menuItems = await MenuItem.find({ _id: { $in: items.map(i => i.item) } })
+    const byId = new Map(menuItems.map(m => [String(m._id), m]))
+
+    let totalAmt = 0
+    let maxPrepTime = 0
+
+    for (const orderItem of items) {
+        const menuItem = byId.get(String(orderItem.item))
+
+        if (!menuItem) {
+            return { error: `Item with ID ${orderItem.item} not found!` }
+        }
+
+        // Calculate price
+        let itemPrice;
+        if (orderItem.servingSize == "half") {
+            if (!menuItem.halfPrice) {
+                return { error: `Menu Item: ${menuItem.name} does not have half Price!` }
+            }
+
+            itemPrice = menuItem.halfPrice;
+        } else if (orderItem.servingSize == "full") {
+            itemPrice = menuItem.fullPrice;
+        } else {
+            return { error: `Menu item ${menuItem.name} does not have selected serving size` }
+        }
+
+        // Add to running total
+        totalAmt += itemPrice * orderItem.qty
+
+        // Track longest prep time across all items
+        const pt = menuItem.prepTime || 0
+        if (pt > maxPrepTime) maxPrepTime = pt
+    }
+
+    return { totalAmt, maxPrepTime }
+}
+
 export async function createOrder(req, res) {
     try {
-        const { userId, items, paymentMethod } = req.body
+        const { items, paymentMethod } = req.body
 
-        // @TODO: Replace with JWT tokens later on
-        const user = await User.findById(userId)
+        // Order is always placed for the authenticated user
+        const user = await User.findById(req.user.id)
         if (!user) {
-            return res.json({ error: "User does not exist!" })
+            return res.status(404).json({ error: "User does not exist!" })
         }
 
         // Check if items are empty
         if (!items || items.length === 0) {
-            return res.json({
+            return res.status(400).json({
                 error: "Cart is empty!"
             })
         }
 
-        // Calculate total amount and max prep time
-        let totalAmt = 0;
-        let maxPrepTime = 0;
+        const { error, totalAmt, maxPrepTime } = await priceOrderItems(items)
+        if (error) return res.status(400).json({ error })
 
-        for (const orderItem of items) {
-            const menuItem = await MenuItem.findById(orderItem.item)
-
-            if (!menuItem) {
-                return res.json({
-                    error: `Item with ID ${orderItem.item} not found!`
-                })
-            }
-
-            // Calculate price
-            let itemPrice;
-            if (orderItem.servingSize == "half") {
-                if (!menuItem.halfPrice) {
-                    return res.json({ error: `Menu Item: ${menuItem.name} does not have half Price!` })
-                }
-
-                itemPrice = menuItem.halfPrice;
-            } else if (orderItem.servingSize == "full") {
-                itemPrice = menuItem.fullPrice;
-            } else {
-                return res.json({ error: `Menu item ${menuItem.name} does not have selected serving size` })
-            }
-
-            // Add to running total
-            totalAmt += itemPrice * orderItem.qty
-
-            // Track longest prep time across all items
-            const pt = menuItem.prepTime || 0
-            if (pt > maxPrepTime) maxPrepTime = pt
-        }
-        
-        // Validate wallet balance before creating order
-        if (paymentMethod === 'wallet') {
-            if (user.walletBalance < totalAmt) {
-                return res.status(400).json({ error: 'Insufficient wallet balance' })
-            }
+        // Fast-fail on an obviously short balance (the real guard is the
+        // atomic deduction below)
+        if (paymentMethod === 'wallet' && user.walletBalance < totalAmt) {
+            return res.status(400).json({ error: 'Insufficient wallet balance' })
         }
 
         // Generate order number first (needed for QR payload and M-Pesa reference)
@@ -165,9 +183,19 @@ export async function createOrder(req, res) {
             order.qrCode = await generateQRCode(qrPayload)
             await order.save()
 
-            await User.findByIdAndUpdate(userId, { $inc: { walletBalance: -totalAmt } })
+            // Atomic deduction: only succeeds if the balance still covers the
+            // total, so two simultaneous orders can't both spend the same money
+            const debited = await User.findOneAndUpdate(
+                { _id: user._id, walletBalance: { $gte: totalAmt } },
+                { $inc: { walletBalance: -totalAmt } }
+            )
+            if (!debited) {
+                await Order.findByIdAndDelete(order._id)
+                return res.status(400).json({ error: 'Insufficient wallet balance' })
+            }
+
             await WalletTransaction.create({
-                user: userId,
+                user: user._id,
                 type: 'debit',
                 amount: totalAmt,
                 description: `Order Payment - ${orderNumber}`,
@@ -213,53 +241,26 @@ export async function updateOrder(req, res) {
         // Verify order exists
         const existingOrder = await Order.findById(id)
         if (!existingOrder) {
-            return res.json({
+            return res.status(404).json({
                 error: "Order does not exist!"
             })
         }
 
         // Prevent modifications if the order is not pending
         if (existingOrder.orderStatus != "pending") {
-            return res.json({
+            return res.status(400).json({
                 error: `Cannot update order. The order is already ${existingOrder.orderStatus}`
             })
-        } 
+        }
 
         let totalAmt = existingOrder.totalAmt
         let updatedItems = existingOrder.items
 
         if (items && items.length > 0) {
-            // Recalculate totalAmt
-            let runningTotal = 0
+            const { error, totalAmt: recalculated } = await priceOrderItems(items)
+            if (error) return res.status(400).json({ error })
 
-            for (const orderItem of items) {
-                const menuItem = await MenuItem.findById(orderItem.item)
-
-                if (!menuItem) {
-                    return res.json({
-                        error: `Item with ID ${orderItem.item} not found!`
-                    })
-                }
-
-                // Calculate price
-                let itemPrice;
-                if (orderItem.servingSize == "half") {
-                    if (!menuItem.halfPrice) {
-                        return res.json({ error: `Menu Item: ${menuItem.name} does not have half Price!` })
-                    }
-
-                    itemPrice = menuItem.halfPrice;
-                } else if (orderItem.servingSize == "full") {
-                    itemPrice = menuItem.fullPrice;
-                } else {
-                    return res.json({ error: `Menu item ${menuItem.name} does not have selected serving size` })
-                }
-
-                // Add to running total
-                runningTotal += itemPrice * orderItem.qty
-            }
-
-            totalAmt = runningTotal
+            totalAmt = recalculated
             updatedItems = items
         }
 
