@@ -111,7 +111,6 @@ export default function DashboardPage() {
   const [forecast, setForecast] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
-  const [lastRefresh, setLastRefresh] = useState(new Date())
 
   const fetchData = useCallback(async () => {
     try {
@@ -124,7 +123,6 @@ export default function DashboardPage() {
       setOrders(ordersRes.data)
       setStats(statsRes.data)
       setForecast(forecastRes.data)
-      setLastRefresh(new Date())
     } catch (err) {
       setError(err.message || 'Failed to load dashboard data')
     } finally {
@@ -210,9 +208,6 @@ export default function DashboardPage() {
         <header className="sticky top-0 z-50 flex justify-between items-center w-full px-4 md:px-8 h-16 bg-surface border-b border-outline-variant shrink-0">
           <h2 className="text-headline-sm font-bold text-primary">Strathmore Dining</h2>
           <div className="flex items-center gap-3">
-            <span className="text-xs text-on-surface-variant hidden md:block">
-              Last updated: {lastRefresh.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
-            </span>
             <button
               onClick={fetchData}
               className="flex items-center gap-1.5 text-sm text-primary hover:bg-primary-fixed px-3 py-1.5 rounded-lg transition-colors cursor-pointer font-medium"

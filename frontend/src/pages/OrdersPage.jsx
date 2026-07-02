@@ -400,7 +400,6 @@ function KitchenPage() {
   const [loading, setLoading]       = useState(true)
   const [error, setError]           = useState(null)
   const [scannerOpen, setScannerOpen] = useState(false)
-  const [lastRefresh, setLastRefresh] = useState(new Date())
   const [toast, setToast]           = useState(null)
   const intervalRef    = useRef(null)
   const fetchSeqRef    = useRef(0)
@@ -430,7 +429,6 @@ function KitchenPage() {
       if (seq !== fetchSeqRef.current) return  // stale — a newer fetch already ran
       const sorted = [...data].sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt))
       setOrders(sorted)
-      setLastRefresh(new Date())
     } catch {
       if (seq !== fetchSeqRef.current) return
       setError('Failed to load orders. Check your connection.')
@@ -490,7 +488,7 @@ function KitchenPage() {
           <div className="flex items-center gap-3">
             <div className="hidden sm:flex items-center gap-1.5 text-xs text-on-surface-variant">
               <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-              Live · {lastRefresh.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+              Live
             </div>
 
             <button

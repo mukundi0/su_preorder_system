@@ -65,7 +65,6 @@ export default function OrderTracking() {
   const [order, setOrder] = useState(null)
   const [error, setError] = useState(null)
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false)
-  const [lastUpdated, setLastUpdated] = useState(null)
 
   const [showCollectedPopup, setShowCollectedPopup] = useState(false)
 
@@ -123,7 +122,6 @@ export default function OrderTracking() {
       const { data } = await axios.get(`/orders/${orderId}`, { params: { _t: Date.now() } })
       if (data?.error) throw new Error(data.error)
       setOrder(data)
-      setLastUpdated(new Date())
     } catch (e) {
       setError(e?.response?.data?.error || e.message || 'Failed to load order')
     }
@@ -237,11 +235,6 @@ export default function OrderTracking() {
               <span className="text-xs font-semibold tracking-widest uppercase text-on-surface-variant bg-surface-container py-1 px-2 rounded-full">
                 {order.pickupCounter || 'Counter 1'}
               </span>
-              {lastUpdated && (
-                <span className="text-[10px] text-on-surface-variant opacity-60">
-                  Updated {lastUpdated.toLocaleTimeString('en-KE', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-                </span>
-              )}
             </div>
           </div>
 

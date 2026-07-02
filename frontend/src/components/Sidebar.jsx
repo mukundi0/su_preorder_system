@@ -49,7 +49,7 @@ export default function Sidebar() {
         <div className="mb-3">
           <img alt="Strathmore University Logo" className="h-20 w-auto object-contain" src={SU_LOGO} />
         </div>
-        <h1 className="font-headline text-xl font-bold text-primary">Kitchen Command</h1>
+        <h1 className="font-headline text-xl font-bold text-primary">{isKitchen ? 'Kitchen Command' : 'Admin Panel'}</h1>
         <p className="text-[11px] uppercase tracking-widest text-primary opacity-80 mt-1">Strathmore Cafeteria</p>
       </div>
 
