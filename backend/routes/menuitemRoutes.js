@@ -7,6 +7,7 @@ import {
     updateMenuItem,
     toggleAvailability
 } from "../controllers/menuitemController.js"
+import { authenticate, authorise } from "../middleware/auth.js"
 
 const router = express.Router()
 
@@ -22,10 +23,14 @@ const upload = multer({
     }
 })
 
+// Browsing the menu is public; all writes are staff-only
 router.get("/", getMenuItems)
-router.post("/create", upload.single("image"), createMenuItem)
-router.put("/update/:id", upload.single("image"), updateMenuItem)
-router.patch("/toggle/:id", toggleAvailability)
-router.delete("/delete/:id", deleteMenuItem)
+
+const staffOnly = [authenticate, authorise('kitchen_staff', 'admin')]
+
+router.post("/create", staffOnly, upload.single("image"), createMenuItem)
+router.put("/update/:id", staffOnly, upload.single("image"), updateMenuItem)
+router.patch("/toggle/:id", staffOnly, toggleAvailability)
+router.delete("/delete/:id", staffOnly, deleteMenuItem)
 
 export default router

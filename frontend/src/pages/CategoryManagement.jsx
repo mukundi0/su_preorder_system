@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import axios from 'axios'
 import Sidebar from '../components/Sidebar'
 import KitchenBottomNav from '../components/KitchenBottomNav'
 import TopNav from '../components/TopNav'
@@ -8,18 +9,20 @@ import Pagination from '../components/Pagination'
 import CategoryModal from '../components/CategoryModal'
 import AdminToast, { useAdminToast } from '../components/AdminToast'
 
-const API_BASE = '/api'
-
-async function fetchJSON(url, options = {}) {
-  const res = await fetch(url, {
-    headers: { 'Content-Type': 'application/json' },
-    ...options,
-  })
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ error: `Request failed (HTTP ${res.status})` }))
-    throw new Error(err.error || err.message || `HTTP ${res.status}`)
+// Thin wrapper around the app-wide axios instance (baseURL + credentials
+// are configured in App.jsx) that keeps this page's error-message shape
+async function fetchJSON(url, { method = 'GET', body } = {}) {
+  try {
+    const { data } = await axios.request({
+      url,
+      method,
+      data: body ? JSON.parse(body) : undefined,
+    })
+    return data
+  } catch (err) {
+    const data = err.response?.data
+    throw new Error(data?.error || data?.message || err.message || 'Request failed', { cause: err })
   }
-  return res.json()
 }
 
 export default function CategoryManagement() {
@@ -45,7 +48,7 @@ export default function CategoryManagement() {
     try {
       const params = new URLSearchParams({ page: String(page) })
       if (searchTerm) params.append('search', searchTerm)
-      const data = await fetchJSON(`${API_BASE}/categories?${params}`)
+      const data = await fetchJSON(`/categories?${params}`)
       setCategories(data.categories || [])
       setPagination(data.pagination || { page: 1, totalPages: 1, total: 0, limit: 0 })
     } catch (err) {
@@ -57,7 +60,7 @@ export default function CategoryManagement() {
 
   const fetchStats = useCallback(async () => {
     try {
-      const data = await fetchJSON(`${API_BASE}/stats`)
+      const data = await fetchJSON(`/stats`)
       setStats(data)
     } catch {
       // silent
@@ -95,7 +98,7 @@ export default function CategoryManagement() {
   const handleDelete = async (cat) => {
     if (!window.confirm(`Delete category "${cat.name}"? This cannot be undone.`)) return
     try {
-      await fetchJSON(`${API_BASE}/categories/${cat._id}`, { method: 'DELETE' })
+      await fetchJSON(`/categories/${cat._id}`, { method: 'DELETE' })
       fetchCategories(pagination.page, debouncedSearch)
       fetchStats()
       success(`"${cat.name}" deleted`)
@@ -107,13 +110,13 @@ export default function CategoryManagement() {
   const handleSubmit = async (form) => {
     try {
       if (editCategory) {
-        await fetchJSON(`${API_BASE}/categories/${editCategory._id}`, {
+        await fetchJSON(`/categories/${editCategory._id}`, {
           method: 'PUT',
           body: JSON.stringify(form),
         })
         success(`"${form.name}" updated`)
       } else {
-        await fetchJSON(`${API_BASE}/categories`, {
+        await fetchJSON(`/categories`, {
           method: 'POST',
           body: JSON.stringify(form),
         })
