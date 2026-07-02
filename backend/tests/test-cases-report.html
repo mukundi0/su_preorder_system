@@ -54,10 +54,10 @@
 <div class="cover">
   <h1>SU Cafeteria Preorder System</h1>
   <h2>Software Test Cases Report</h2>
-  <p><strong>Module:</strong> Student &amp; Kitchen Staff Roles</p>
-  <p><strong>Testing Framework:</strong> Vitest v4 + Supertest + MongoDB Memory Server</p>
-  <p><strong>Total Test Cases:</strong> 48 &nbsp;|&nbsp; <strong>Passed:</strong> 48 &nbsp;|&nbsp; <strong>Failed:</strong> 0</p>
-  <p><strong>Date:</strong> 29 June 2026</p>
+  <p><strong>Module:</strong> Student &amp; Kitchen Staff Roles – Backend &amp; Frontend</p>
+  <p><strong>Testing Framework:</strong> Vitest v4 + Supertest + MongoDB Memory Server + React Testing Library</p>
+  <p><strong>Total Test Cases:</strong> 80 &nbsp;|&nbsp; <strong>Passed:</strong> 80 &nbsp;|&nbsp; <strong>Failed:</strong> 0</p>
+  <p><strong>Date:</strong> 30 June 2026</p>
 </div>
 
 <!-- ════════════════ TABLE ════════════════ -->
@@ -536,11 +536,313 @@
       <td class="status pass">Pass</td>
     </tr>
 
+
+    <!-- ═══════════════════════════════════════════════════════════════
+         FRONTEND TESTS  (Vitest + React Testing Library + jsdom)
+         ═══════════════════════════════════════════════════════════════ -->
+
+    <!-- ───── STUDENT: CART (unit) ───── -->
+    <tr><td colspan="6" class="section-header">Frontend – Student: Cart Context (unit tests)</td></tr>
+
+    <tr>
+      <td class="num">49</td>
+      <td>Cart starts empty with checkout disabled</td>
+      <td>Fresh <code>CartProvider</code> rendered via <code>renderHook</code>; no prior localStorage data</td>
+      <td><code>cart</code> is empty array; <code>cartCount = 0</code>; <code>checkoutDisabled = true</code></td>
+      <td>As expected — cart empty, cartCount 0, checkout disabled</td>
+      <td class="status pass">Pass</td>
+    </tr>
+
+    <tr>
+      <td class="num">50</td>
+      <td>Adding a new item to the cart</td>
+      <td><code>addItemToCart({ _id: 'm1', name: 'Ugali', fullPrice: 100 })</code></td>
+      <td>Cart has 1 entry; <code>qty = 1</code>; item name is <em>Ugali</em>; <code>checkoutDisabled = false</code></td>
+      <td>As expected — item added, checkout enabled</td>
+      <td class="status pass">Pass</td>
+    </tr>
+
+    <tr>
+      <td class="num">51</td>
+      <td>Adding the same item twice increments qty, not entries</td>
+      <td><code>addItemToCart(Ugali)</code> called twice</td>
+      <td>Cart has 1 entry with <code>qty = 2</code>; <code>cartCount = 2</code></td>
+      <td>As expected — duplicate merged, quantity incremented</td>
+      <td class="status pass">Pass</td>
+    </tr>
+
+    <tr>
+      <td class="num">52</td>
+      <td>Same item in different serving sizes creates separate cart entries</td>
+      <td><code>addItemToCart(Ugali, servingSize:'full')</code> then <code>addItemToCart(Ugali, servingSize:'half')</code></td>
+      <td>Cart has 2 entries; <code>cartCount = 2</code></td>
+      <td>As expected — full and half tracked separately</td>
+      <td class="status pass">Pass</td>
+    </tr>
+
+    <tr>
+      <td class="num">53</td>
+      <td>Removing an item empties the cart</td>
+      <td>Add Ugali (full); then <code>removeItemFromCart('m1', 'full')</code></td>
+      <td>Cart is empty; <code>checkoutDisabled = true</code></td>
+      <td>As expected — item removed, checkout disabled again</td>
+      <td class="status pass">Pass</td>
+    </tr>
+
+    <tr>
+      <td class="num">54</td>
+      <td>updateCartItemQty increments the quantity</td>
+      <td>Add Ugali (qty 1); call <code>updateCartItemQty('m1', +1, 'full')</code></td>
+      <td>Cart entry has <code>qty = 2</code></td>
+      <td>As expected — quantity incremented to 2</td>
+      <td class="status pass">Pass</td>
+    </tr>
+
+    <tr>
+      <td class="num">55</td>
+      <td>updateCartItemQty removes item when qty reaches zero</td>
+      <td>Add Ugali (qty 1); call <code>updateCartItemQty('m1', -1, 'full')</code></td>
+      <td>Cart is empty</td>
+      <td>As expected — item auto-removed at zero quantity</td>
+      <td class="status pass">Pass</td>
+    </tr>
+
+    <tr>
+      <td class="num">56</td>
+      <td>Cart totals calculated correctly for multiple items</td>
+      <td>Add Ugali (KES 100) and Soda (KES 60)</td>
+      <td><code>subtotal = 160</code>; <code>total = 160</code></td>
+      <td>As expected — totals summed correctly</td>
+      <td class="status pass">Pass</td>
+    </tr>
+
+    <tr>
+      <td class="num">57</td>
+      <td>Half-price serving uses halfPrice in total calculation</td>
+      <td>Add Ugali with <code>fullPrice: 100</code>, <code>halfPrice: 50</code>, <code>servingSize: 'half'</code></td>
+      <td><code>subtotal = 50</code> (halfPrice used, not fullPrice)</td>
+      <td>As expected — half price applied in totals</td>
+      <td class="status pass">Pass</td>
+    </tr>
+
+    <tr>
+      <td class="num">58</td>
+      <td>Cart persists to localStorage when modified</td>
+      <td>Add Ugali; read <code>localStorage.getItem('cart')</code></td>
+      <td>Parsed JSON has 1 entry with <code>item.name = 'Ugali'</code></td>
+      <td>As expected — cart saved to localStorage</td>
+      <td class="status pass">Pass</td>
+    </tr>
+
+    <tr>
+      <td class="num">59</td>
+      <td>clearCart empties the entire cart</td>
+      <td>Add Ugali; call <code>clearCart()</code></td>
+      <td>Cart is an empty array</td>
+      <td>As expected — cart cleared</td>
+      <td class="status pass">Pass</td>
+    </tr>
+
+    <!-- ───── STUDENT: ORDER PAGE (integration) ───── -->
+    <tr><td colspan="6" class="section-header">Frontend – Student: Order Page (integration tests)</td></tr>
+
+    <tr>
+      <td class="num">60</td>
+      <td>Menu items fetched from API are rendered on the page</td>
+      <td>Axios <code>GET /menuitems</code> mocked to return Ugali, Soda, Chapati</td>
+      <td>All three item names appear in the DOM</td>
+      <td>As expected — all items rendered after API response</td>
+      <td class="status pass">Pass</td>
+    </tr>
+
+    <tr>
+      <td class="num">61</td>
+      <td>Sold Out overlay shown for unavailable menu items</td>
+      <td>Chapati seeded with <code>isAvailable: false</code></td>
+      <td>At least one <em>Sold Out</em> badge is visible in the DOM</td>
+      <td>As expected — Sold Out badge rendered for unavailable item</td>
+      <td class="status pass">Pass</td>
+    </tr>
+
+    <tr>
+      <td class="num">62</td>
+      <td>Category filter buttons rendered from API response</td>
+      <td>Axios <code>GET /categories</code> mocked to return Main Course and Drinks</td>
+      <td>Buttons for <em>All Items</em>, <em>Main Course</em>, and <em>Drinks</em> appear</td>
+      <td>As expected — dynamic category buttons rendered</td>
+      <td class="status pass">Pass</td>
+    </tr>
+
+    <tr>
+      <td class="num">63</td>
+      <td>Clicking a category button filters displayed items</td>
+      <td>Click <em>Drinks</em> filter button</td>
+      <td>Only <em>Soda</em> (Drinks category) is visible; <em>Ugali</em> and <em>Chapati</em> are removed from DOM</td>
+      <td>As expected — category filter works correctly</td>
+      <td class="status pass">Pass</td>
+    </tr>
+
+    <tr>
+      <td class="num">64</td>
+      <td>Search input filters menu items by name</td>
+      <td>Type <code>Soda</code> in search box</td>
+      <td><em>Soda</em> is visible; <em>Ugali</em> is removed from DOM</td>
+      <td>As expected — search filter applied on input change</td>
+      <td class="status pass">Pass</td>
+    </tr>
+
+    <tr>
+      <td class="num">65</td>
+      <td>Empty state shown when search matches no items</td>
+      <td>Type <code>xyz_nothing_here</code> in search box</td>
+      <td>Message matching <em>"No items match"</em> appears in DOM</td>
+      <td>As expected — empty state message displayed</td>
+      <td class="status pass">Pass</td>
+    </tr>
+
+    <tr>
+      <td class="num">66</td>
+      <td>Serving size picker opens for items with a half price</td>
+      <td>Click the Add button on <em>Ugali</em> (has <code>halfPrice: 50</code>)</td>
+      <td>Modal with <em>"Choose your serving size"</em>, <em>Half Serving</em>, and <em>Full Serving</em> options appears</td>
+      <td>As expected — size picker sheet opens</td>
+      <td class="status pass">Pass</td>
+    </tr>
+
+    <tr>
+      <td class="num">67</td>
+      <td>Items without a half price are added directly without showing the picker</td>
+      <td>Click the Add button on <em>Soda</em> (<code>halfPrice: null</code>)</td>
+      <td>No size picker modal appears; cart count updates to <em>1 item</em></td>
+      <td>As expected — direct add, no picker, cart count incremented</td>
+      <td class="status pass">Pass</td>
+    </tr>
+
+    <tr>
+      <td class="num">68</td>
+      <td>Greeting displays the logged-in student's name</td>
+      <td>AuthContext mocked to return user with <code>name: 'Alice'</code></td>
+      <td>Text containing <em>Alice</em> is visible in the page heading</td>
+      <td>As expected — personalised greeting rendered</td>
+      <td class="status pass">Pass</td>
+    </tr>
+
+    <!-- ───── KITCHEN: ORDERS BOARD (integration) ───── -->
+    <tr><td colspan="6" class="section-header">Frontend – Kitchen Staff: Live Operations Board (integration tests)</td></tr>
+
+    <tr>
+      <td class="num">69</td>
+      <td>Loading spinner shown before orders are fetched</td>
+      <td>Axios <code>GET /orders</code> mocked to never resolve (pending Promise)</td>
+      <td>Text <em>"Loading order queue..."</em> is visible in the DOM immediately</td>
+      <td>As expected — loading state shown while fetch is in-flight</td>
+      <td class="status pass">Pass</td>
+    </tr>
+
+    <tr>
+      <td class="num">70</td>
+      <td>Live Operations Board header rendered after data loads</td>
+      <td>Axios <code>GET /orders</code> returns mock order array; AuthContext role = kitchen</td>
+      <td>Heading <em>"Live Operations Board"</em> appears in the DOM</td>
+      <td>As expected — board header visible after fetch completes</td>
+      <td class="status pass">Pass</td>
+    </tr>
+
+    <tr>
+      <td class="num">71</td>
+      <td>KPI stat labels (Today, Ready, Collected) are rendered</td>
+      <td>Mock orders include today's orders across multiple statuses</td>
+      <td>Labels <em>Today</em>, <em>Ready</em>, and <em>Collected</em> are all present in the DOM</td>
+      <td>As expected — all three KPI labels rendered</td>
+      <td class="status pass">Pass</td>
+    </tr>
+
+    <tr>
+      <td class="num">72</td>
+      <td>KPI counts reflect correct values from order statuses</td>
+      <td>3 today's orders: 1 × <code>ready for pickup</code>, 1 × <code>collected</code>, 1 × <code>preparing</code></td>
+      <td>Today = 3, Ready = 1, Collected = 1 displayed under respective labels</td>
+      <td>As expected — KPI counts computed and displayed correctly</td>
+      <td class="status pass">Pass</td>
+    </tr>
+
+    <tr>
+      <td class="num">73</td>
+      <td>Order card rendered for "ready for pickup" orders</td>
+      <td>ORD001 with <code>orderStatus: 'ready for pickup'</code>, customer <em>Alice</em></td>
+      <td>Order number <em>#ORD001</em> and customer name <em>Alice</em> appear in the kanban column</td>
+      <td>As expected — ready order card displayed in column</td>
+      <td class="status pass">Pass</td>
+    </tr>
+
+    <tr>
+      <td class="num">74</td>
+      <td>Scan to Complete button shown on ready orders</td>
+      <td>One order with <code>orderStatus: 'ready for pickup'</code> in the board</td>
+      <td>Button labelled <em>Scan to Complete</em> is present in the DOM</td>
+      <td>As expected — action button rendered for ready order</td>
+      <td class="status pass">Pass</td>
+    </tr>
+
+    <tr>
+      <td class="num">75</td>
+      <td>Preparing and collected orders not shown in the kanban column</td>
+      <td>ORD002 (<code>collected</code>) and ORD003 (<code>preparing</code>) present in mock data</td>
+      <td><em>#ORD002</em> and <em>#ORD003</em> do not appear in the column</td>
+      <td>As expected — non-ready orders excluded from the kanban column</td>
+      <td class="status pass">Pass</td>
+    </tr>
+
+    <tr>
+      <td class="num">76</td>
+      <td>Order items listed inside the ready order card</td>
+      <td>ORD001 contains item <em>Ugali</em> (qty 2)</td>
+      <td>Text <em>Ugali</em> appears inside the order card in the DOM</td>
+      <td>As expected — order items rendered within card</td>
+      <td class="status pass">Pass</td>
+    </tr>
+
+    <tr>
+      <td class="num">77</td>
+      <td>Ready for Collection column heading is displayed</td>
+      <td>Board rendered with any order data</td>
+      <td>Column heading <em>"Ready for Collection"</em> is visible</td>
+      <td>As expected — column heading rendered</td>
+      <td class="status pass">Pass</td>
+    </tr>
+
+    <tr>
+      <td class="num">78</td>
+      <td>Empty state shown in column when no orders are ready</td>
+      <td>All mock orders have statuses <code>collected</code> and <code>preparing</code> only</td>
+      <td>Message <em>"No orders here"</em> appears inside the Ready for Collection column</td>
+      <td>As expected — empty state displayed in column</td>
+      <td class="status pass">Pass</td>
+    </tr>
+
+    <tr>
+      <td class="num">79</td>
+      <td>Error message shown when orders fetch fails</td>
+      <td>Axios <code>GET /orders</code> mocked to reject with a network error</td>
+      <td>Text matching <em>"Failed to load orders"</em> appears in the DOM</td>
+      <td>As expected — error state rendered on fetch failure</td>
+      <td class="status pass">Pass</td>
+    </tr>
+
+    <tr>
+      <td class="num">80</td>
+      <td>Clicking Scan to Complete opens the QR scanner modal</td>
+      <td>Board has a ready order; click the <em>Scan to Complete</em> button</td>
+      <td>Modal with heading <em>"Scan Collection Code"</em> appears in the DOM</td>
+      <td>As expected — QR scanner modal opens on button click</td>
+      <td class="status pass">Pass</td>
+    </tr>
+
   </tbody>
 </table>
 
 <p style="margin-top:12px; font-size:8pt; color:#555; text-align:center;">
-  Generated automatically from Vitest test suite &mdash; SU Cafeteria Preorder System &mdash; 29 June 2026
+  Generated automatically from Vitest test suite &mdash; SU Cafeteria Preorder System &mdash; 30 June 2026
 </p>
 
 </body>
